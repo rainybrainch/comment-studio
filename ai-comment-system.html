@@ -3436,7 +3436,7 @@ body.theme-game {
       $("pauseBtn").classList.toggle("warn", paused);
       updateLiveBar();
     });
-    $("reactBtn").addEventListener("click", () => comment(false));
+    $("reactBtn").addEventListener("click", () => comment(false, true));
     $("superBtn").addEventListener("click", () => comment(true));
     $("demoBurstBtn").addEventListener("click", () => { testFlow(); setTimeout(() => comment(false), 450); setTimeout(() => comment(true), 900); });
     if ($("captureBtn")) $("captureBtn").addEventListener("click", startScreenCapture);
@@ -4364,16 +4364,23 @@ body.theme-game {
     return score;
   }
 
-  async function comment(superChat) {
+  async function comment(superChat, forced = false) {
     if (paused) return;
-    if (!recentText().trim()) return;
-    if (!superChat && Date.now() - lastCommentAt < 1600) return;
-    await syncPersonaSheet(true);
+    // forcedでない場合のみrecentTextチェック
+    const ctx = recentText().trim();
+    if (!forced && !ctx) return;
+    if (!superChat && !forced && Date.now() - lastCommentAt < 1600) return;
+    // forcedの場合テスト文を入れる
+    if (forced && !ctx) {
+      const g = genres[settings.genre] || genres.game;
+      pushTranscript("配信中です。" + (g.guide || "今の話題でコメントを流します。"));
+    }
     if (settings.commentEngine === "gemini") {
       const generated = await geminiComment(superChat);
       if (generated) return;
     }
     const p = pickPersona();
+    if (!p) return;
     let text = "";
     for (let i = 0; i < 8; i++) {
       text = buildComment(p);
@@ -4920,12 +4927,16 @@ body.theme-game {
     nextCommentScheduledAt = Date.now() + delay;
     autoTimer = setTimeout(() => {
       if (auto && !paused) {
-        // commentBuffer が足りなくてもrecentText(interim含む)があれば発火
-        if (recentText().trim() && countMeaningfulChars(commentBuffer) < commentThreshold()) {
+        const ctx = recentText().trim();
+        const buf = countMeaningfulChars(commentBuffer);
+        if (ctx && buf >= commentThreshold()) {
+          // 十分なテキストあり → 通常発火
           comment(false);
-        } else {
-          maybeCommentByTranscriptLength();
+        } else if (ctx) {
+          // テキストあるがバッファ不足 → 強制発火
+          comment(false, true);
         }
+        // テキストなし → 何もしない
       }
       schedule();
     }, delay);
@@ -5630,7 +5641,7 @@ body.theme-game {
 
     // NOW ボタン
     const hudNow = $("hudNow");
-    if (hudNow) hudNow.addEventListener("click", () => comment(false));
+    if (hudNow) hudNow.addEventListener("click", () => comment(false, true));
 
     // モード切替
     if (panel) {
@@ -5762,7 +5773,7 @@ body.theme-game {
       if (auto) schedule();
       syncQC();
     });
-    if (qcNow) qcNow.addEventListener("click", () => { comment(false); });
+    if (qcNow) qcNow.addEventListener("click", () => { comment(false, true); });
 
     function sendQcTopic() {
       const text = (qcTopic ? qcTopic.value.trim() : "");
