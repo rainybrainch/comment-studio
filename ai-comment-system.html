@@ -2764,7 +2764,10 @@ body.theme-game {
         </button>
       </div>
       <div class="qc-topic-row">
-        <input class="qc-topic" id="qcTopic" placeholder="話題を入力して Enter…" type="text">
+        <input class="qc-topic" id="qcTitle" placeholder="📌 タイトル（番組名）" type="text" title="配信タイトル">
+      </div>
+      <div class="qc-topic-row">
+        <input class="qc-topic" id="qcTopic" placeholder="💬 話題を入力して Enter…" type="text">
         <button class="qc-send" id="qcSend" type="button" title="この話題でコメント生成">▶</button>
       </div>
     </div>
@@ -3143,7 +3146,10 @@ body.theme-game {
             <div class="hud-comments-label">最近のコメント <span style="font-weight:500;opacity:.6">（評価して学習）</span></div>
             <div class="hud-comments" id="hudComments"></div>
             <div class="hud-topic-row">
-              <input class="hud-topic" id="hudTopic" placeholder="話題を入力… Enter で即コメント">
+              <input class="hud-topic" id="hudTitle" placeholder="📌 タイトル変更…">
+            </div>
+            <div class="hud-topic-row">
+              <input class="hud-topic" id="hudTopic" placeholder="💬 話題を入力… Enter で即コメント">
             </div>
           </div>
         </div>
@@ -5616,6 +5622,20 @@ body.theme-game {
       });
     }
 
+    // HUD タイトル入力
+    const hudTitle = $("hudTitle");
+    if (hudTitle) {
+      hudTitle.value = settings.programTitle || "";
+      hudTitle.addEventListener("input", () => {
+        settings.programTitle = hudTitle.value;
+        if ($("programTitle")) $("programTitle").value = hudTitle.value;
+        if ($("qcTitle")) $("qcTitle").value = hudTitle.value;
+        saveSettings();
+        applyTheme();
+        updateObsUrl();
+      });
+    }
+
     // 話題入力
     const hudTopic = $("hudTopic");
     if (hudTopic) {
@@ -5725,6 +5745,18 @@ body.theme-game {
       $("manualTopic").value = "";
       pushTranscript(text);
       comment(false);
+    }
+    // タイトル入力（QCパネル）
+    const qcTitle = $("qcTitle");
+    if (qcTitle) {
+      qcTitle.value = settings.programTitle || "";
+      qcTitle.addEventListener("input", () => {
+        settings.programTitle = qcTitle.value;
+        if ($("programTitle")) $("programTitle").value = qcTitle.value;
+        saveSettings();
+        applyTheme();
+        updateObsUrl();
+      });
     }
     if (qcTopic) qcTopic.addEventListener("keydown", e => { if (e.key === "Enter") sendQcTopic(); });
     if (qcSend) qcSend.addEventListener("click", sendQcTopic);
