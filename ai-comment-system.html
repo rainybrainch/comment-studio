@@ -3397,6 +3397,20 @@ body.theme-game {
       });
     });
     $("personaSelect").addEventListener("change", () => { settings.persona = $("personaSelect").value; saveSettings(); });
+
+    // タイトル入力 → 即DOM反映（applyTheme()経由を待たない）
+    if ($("programTitle")) {
+      $("programTitle").addEventListener("input", () => {
+        const val = $("programTitle").value;
+        settings.programTitle = val;
+        document.querySelectorAll(".title-widget-text").forEach(el => {
+          el.textContent = val || "ALL DOMEDIA";
+        });
+        if ($("qcTitle")) $("qcTitle").value = val;
+        saveSettings();
+        updateObsUrl();
+      });
+    }
     $("micBtn").addEventListener("click", toggleMic);
     $("testBtn").addEventListener("click", testFlow);
     $("autoBtn").addEventListener("click", () => {
@@ -3668,13 +3682,11 @@ body.theme-game {
   function updateProgramLabel() {
     const g = genres[settings.genre] || genres.book;
     const title = programDisplayTitle(g);
-    ["controlProgram","overlayProgram"].forEach(id => { if ($(id)) $(id).textContent = ""; });
-    ["controlTitle","overlayTitle"].forEach(id => {
-      const el = $(id);
-      if (!el) return;
-      const text = el.querySelector(".title-widget-text");
-      if (text) text.textContent = title;
+    // 全タイトルウィジェットを一括更新
+    document.querySelectorAll(".title-widget-text").forEach(el => {
+      el.textContent = title;
     });
+    ["controlProgram","overlayProgram"].forEach(id => { if ($(id)) $(id).textContent = ""; });
     ["controlProgramBadge","overlayProgramBadge"].forEach(id => { if ($(id)) $(id).textContent = title; });
     if ($("stageTitle")) $("stageTitle").textContent = title;
     fitStageText();
