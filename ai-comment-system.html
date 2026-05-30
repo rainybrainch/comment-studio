@@ -2766,6 +2766,11 @@ body.theme-game {
       <div class="qc-topic-row">
         <input class="qc-topic" id="qcTitle" placeholder="📌 タイトル（番組名）" type="text" title="配信タイトル">
       </div>
+      <div class="qc-topic-row" style="align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--muted);white-space:nowrap;font-weight:900">コメント発火</span>
+        <input type="range" id="qcChars" min="20" max="200" step="10" value="100" style="flex:1;height:4px;border:none;background:transparent;accent-color:var(--accent);padding:0;min-height:auto">
+        <span id="qcCharsLabel" style="font-size:10px;color:var(--accent);font-weight:900;min-width:36px;text-align:right;font-variant-numeric:tabular-nums">100字</span>
+      </div>
       <div class="qc-topic-row">
         <input class="qc-topic" id="qcTopic" placeholder="💬 話題を入力して Enter…" type="text">
         <button class="qc-send" id="qcSend" type="button" title="この話題でコメント生成">▶</button>
@@ -3215,7 +3220,7 @@ body.theme-game {
     persona: "auto",
     programTitle: "ゲーム実況",
     ngWords: "",
-    commentChars: "20",
+    commentChars: "100",
     commentEngine: "template",
     geminiProxyUrl: "http://127.0.0.1:8788/gemini-comment",
     personaSheetUrl: "https://docs.google.com/spreadsheets/d/1YNQUnDv18WsMm7H84Ytg3lIgvWmetLZ3bqyMm3RCgkI/export?format=csv",
@@ -3382,6 +3387,11 @@ body.theme-game {
       if (!$(id)) return;
       $(id).addEventListener(liveInput ? "input" : "change", () => {
         settings[id] = $(id).value;
+        // commentChars変更時はQCスライダーも同期
+        if (id === "commentChars") {
+          if ($("qcChars")) $("qcChars").value = settings.commentChars;
+          if ($("qcCharsLabel")) $("qcCharsLabel").textContent = settings.commentChars + "字";
+        }
         saveSettings();
         applyTheme();
         applyScreenLayout();
@@ -5762,6 +5772,20 @@ body.theme-game {
       pushTranscript(text);
       comment(false);
     }
+    // コメント発火文字数スライダー（QCパネル）
+    const qcChars = $("qcChars");
+    const qcCharsLabel = $("qcCharsLabel");
+    if (qcChars) {
+      qcChars.value = settings.commentChars || "100";
+      if (qcCharsLabel) qcCharsLabel.textContent = (settings.commentChars || "100") + "字";
+      qcChars.addEventListener("input", () => {
+        settings.commentChars = qcChars.value;
+        if ($("commentChars")) $("commentChars").value = qcChars.value;
+        if (qcCharsLabel) qcCharsLabel.textContent = qcChars.value + "字";
+        saveSettings();
+      });
+    }
+
     // タイトル入力（QCパネル）
     const qcTitle = $("qcTitle");
     if (qcTitle) {
