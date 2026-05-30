@@ -2988,7 +2988,8 @@ body.theme-game {
         </div>
       </div>
       <div class="actions">
-        <button id="copyOverlayBtn" class="primary" type="button">コメント表示URLコピー</button>
+        <button id="openOverlayBtn" class="good" type="button">🖥️ オーバーレイを開く</button>
+        <button id="copyOverlayBtn" type="button">URLコピー</button>
         <button id="clearBtn" type="button">表示クリア</button>
       </div>
       <textarea id="obsUrl" class="urlbox" readonly></textarea>
@@ -3430,6 +3431,7 @@ body.theme-game {
     $("importPersonaSheetBtn").addEventListener("click", importPersonaSheet);
     $("resetSheetPersonasBtn").addEventListener("click", resetSheetPersonas);
     $("copyOverlayBtn").addEventListener("click", () => copyUrl(overlayUrl()));
+    $("openOverlayBtn").addEventListener("click", () => window.open(overlayUrl(), "_blank"));
     $("clearBtn").addEventListener("click", () => post({ type: "clear" }));
     $("refreshTimeBtn").addEventListener("click", updateClock);
     $("resetTimersBtn").addEventListener("click", resetTimers);
