@@ -3215,8 +3215,8 @@ body.theme-game {
     persona: "auto",
     programTitle: "ゲーム実況",
     ngWords: "",
-    commentChars: "50",
-    commentEngine: "gemini",
+    commentChars: "20",
+    commentEngine: "template",
     geminiProxyUrl: "http://127.0.0.1:8788/gemini-comment",
     personaSheetUrl: "https://docs.google.com/spreadsheets/d/1YNQUnDv18WsMm7H84Ytg3lIgvWmetLZ3bqyMm3RCgkI/export?format=csv",
     side: "right",
@@ -4909,7 +4909,14 @@ body.theme-game {
     nextCommentIntervalMs = delay;
     nextCommentScheduledAt = Date.now() + delay;
     autoTimer = setTimeout(() => {
-      if (auto && !paused) maybeCommentByTranscriptLength();
+      if (auto && !paused) {
+        // commentBuffer が足りなくてもrecentText(interim含む)があれば発火
+        if (recentText().trim() && countMeaningfulChars(commentBuffer) < commentThreshold()) {
+          comment(false);
+        } else {
+          maybeCommentByTranscriptLength();
+        }
+      }
       schedule();
     }, delay);
   }
