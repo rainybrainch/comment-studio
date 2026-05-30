@@ -4164,9 +4164,6 @@ body.theme-game {
     for (let i = 1; i < result.length; i++) {
       if ((result[i].confidence || 0) > (best.confidence || 0)) best = result[i];
     }
-    // 信頼度が低すぎる結果は捨てる（感度設定に応じた閾値）
-    const threshold = speechConfidenceThreshold();
-    if ((best.confidence || 0) < threshold && result.length > 1) return "";
     return String(best.transcript || "").trim();
   }
 
