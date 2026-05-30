@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALL DOMEDIA コメントスタジオ</title>
+<style>
+:root {
+  --accent: #d8b84f;
+  --cyan: #49d4ff;
+  --good: #57d68d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  font-family: "Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(73,212,255,.10), transparent 32%),
+    radial-gradient(circle at 82% 90%, rgba(216,184,79,.09), transparent 32%),
+    linear-gradient(135deg, #020609, #060f1a 55%, #030609);
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.container {
+  max-width: 680px;
+  width: 100%;
+  text-align: center;
+}
+.logo-mark {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  border: 2px solid rgba(216,184,79,.4);
+  background: linear-gradient(135deg, rgba(73,212,255,.22), rgba(216,184,79,.28));
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff7c9;
+  margin: 0 auto 20px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.4), 0 0 40px rgba(216,184,79,.12);
+}
+h1 {
+  font-size: clamp(22px, 4vw, 32px);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  margin: 0 0 8px;
+  background: linear-gradient(90deg, #fff5c9, #f2c14e 50%, #49d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.sub {
+  color: rgba(248,250,252,.55);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 40px;
+  line-height: 1.6;
+}
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.card {
+  border: 1px solid rgba(216,184,79,.22);
+  border-radius: 14px;
+  background: rgba(4,15,29,.88);
+  padding: 22px 18px;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: all .18s;
+  text-align: left;
+}
+.card:hover {
+  border-color: rgba(216,184,79,.5);
+  background: rgba(4,15,29,.96);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 36px rgba(0,0,0,.38);
+}
+.card-icon { font-size: 28px; margin-bottom: 10px; }
+.card-title {
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 5px;
+  color: var(--accent);
+}
+.card-desc { font-size: 11px; color: rgba(248,250,252,.55); line-height: 1.5; }
+.flow {
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  background: rgba(4,15,29,.6);
+  padding: 18px 22px;
+  font-size: 12px;
+  color: rgba(248,250,252,.6);
+  line-height: 2;
+}
+.flow strong { color: var(--cyan); }
+@media (max-width: 480px) {
+  .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo-mark">⚡</div>
+  <h1>ALL DOMEDIA コメントスタジオ</h1>
+  <p class="sub">
+    音声文字起こし × AI人格 × OBS連携<br>
+    ゲーム実況・VTuber・教育配信に対応したAIリスナーシステム
+  </p>
+
+  <div class="cards">
+    <a class="card" href="ai-comment-personas.html">
+      <div class="card-icon">🧬</div>
+      <div class="card-title">チャンネルOS</div>
+      <div class="card-desc">AI コメント人格を作成・管理。配信スタジオに直接送れる。</div>
+    </a>
+    <a class="card" href="ai-comment-system.html">
+      <div class="card-icon">🎮</div>
+      <div class="card-title">コメントスタジオ</div>
+      <div class="card-desc">配信中の音声を文字起こしし、AI人格がリアルタイムでコメント。OBS連携対応。</div>
+    </a>
+  </div>
+
+  <div class="flow">
+    <strong>チャンネルOS</strong> で人格を作る
+    → <strong>⚡ 配信に送る</strong> をクリック
+    → <strong>コメントスタジオ</strong> でマイクON・自動コメントON
+    → OBS Browser Source に overlay URL を設定
+    → 配信開始
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#000000">
+<title>AI Comment Overlay</title>
+<style>
+:root {
+  --panel: rgba(10, 16, 24, .82);
+  --panel-strong: rgba(12, 18, 28, .94);
+  --line: rgba(255, 255, 255, .14);
+  --text: #f6f7fb;
+  --muted: rgba(246, 247, 251, .64);
+  --gold: #f2c14e;
+  --green: #57d68d;
+  --blue: #60b7ff;
+  --red: #ff6b7a;
+  --shadow: 0 14px 42px rgba(0, 0, 0, .34);
+  --studio-accent: #60b7ff;
+  --font-ui: "Yu Gothic", "Hiragino Kaku Gothic ProN", "Noto Sans JP", system-ui, sans-serif;
+  --font-display: var(--font-ui);
+  --font-comment: var(--font-ui);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font-ui);
+  color: var(--text);
+}
+
+body.clean .control-dock,
+body.clean .status-strip {
+  display: none;
+}
+
+body.hide-program .program-card,
+body.hide-caption .subtitle-bar,
+body.hide-comments .comment-lane,
+body.hide-avatar .avatar-stage {
+  display: none !important;
+}
+
+body.studio {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(96, 183, 255, .18), transparent 26rem),
+    radial-gradient(circle at 68% 6%, rgba(242, 193, 78, .12), transparent 22rem),
+    linear-gradient(135deg, rgba(8, 12, 18, .92), rgba(14, 16, 20, .78));
+}
+
+body.studio.design-book {
+  --font-display: "Yu Mincho", "Hiragino Mincho ProN", "BIZ UDPMincho", "Noto Serif JP", serif;
+  --font-comment: "BIZ UDPMincho", "Yu Mincho", "Hiragino Mincho ProN", serif;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(242, 193, 78, .2), transparent 25rem),
+    radial-gradient(circle at 74% 18%, rgba(96, 183, 255, .1), transparent 23rem),
+    linear-gradient(135deg, rgba(18, 15, 11, .94), rgba(24, 20, 16, .76));
+}
+
+body.studio.design-movie {
+  --font-display: "BIZ UDPGothic", "Yu Gothic", "Meiryo", "Noto Sans JP", system-ui, sans-serif;
+  --font-comment: "BIZ UDPGothic", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .045) 1px, transparent 1px) 0 0 / 72px 100%,
+    radial-gradient(circle at 32% 12%, rgba(255, 107, 122, .18), transparent 24rem),
+    linear-gradient(135deg, rgba(8, 9, 13, .96), rgba(20, 15, 22, .8));
+}
+
+body.studio.design-game {
+  --font-display: "BIZ UDGothic", "Meiryo", "Yu Gothic", ui-monospace, Consolas, sans-serif;
+  --font-comment: "BIZ UDGothic", "Meiryo", "Yu Gothic", ui-monospace, Consolas, sans-serif;
+  background:
+    linear-gradient(90deg, rgba(87, 214, 141, .08) 1px, transparent 1px) 0 0 / 48px 48px,
+    linear-gradient(0deg, rgba(87, 214, 141, .07) 1px, transparent 1px) 0 0 / 48px 48px,
+    radial-gradient(circle at 20% 18%, rgba(87, 214, 141, .18), transparent 22rem),
+    radial-gradient(circle at 72% 12%, rgba(96, 183, 255, .16), transparent 24rem),
+    linear-gradient(135deg, rgba(7, 15, 12, .96), rgba(9, 12, 18, .82));
+}
+
+button,
+textarea,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .08);
+  color: var(--text);
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+button:hover { background: rgba(255, 255, 255, .14); }
+button.primary { background: rgba(96, 183, 255, .2); border-color: rgba(96, 183, 255, .48); }
+button.good { background: rgba(87, 214, 141, .18); border-color: rgba(87, 214, 141, .42); }
+button.warn { background: rgba(242, 193, 78, .16); border-color: rgba(242, 193, 78, .42); }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.studio-frame {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+
+body.studio .studio-frame {
+  display: block;
+}
+
+.avatar-stage {
+  position: absolute;
+  left: 5vw;
+  bottom: 6vh;
+  width: min(36vw, 560px);
+  height: min(74vh, 760px);
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  z-index: 1;
+}
+
+.avatar-stage.empty::before {
+  content: "V CHARACTER";
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border: 2px dashed rgba(96, 183, 255, .45);
+  border-radius: 8px;
+  color: rgba(246, 247, 251, .58);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.avatar-stage img,
+.avatar-stage video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 20px 34px rgba(0, 0, 0, .38));
+}
+
+.brand-bug {
+  position: absolute;
+  top: 22px;
+  left: 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  background: rgba(6, 10, 14, .58);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--studio-accent), var(--gold));
+  color: #071016;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.brand-text {
+  display: grid;
+  gap: 1px;
+}
+
+.brand-text strong {
+  font-family: var(--font-display);
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: .04em;
+}
+
+.brand-text span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.program-card {
+  position: absolute;
+  left: 28px;
+  bottom: 118px;
+  width: min(520px, 45vw);
+  padding: 17px 19px 18px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-left: 5px solid var(--studio-accent);
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(6, 10, 14, .82), rgba(6, 10, 14, .48));
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  z-index: 2;
+}
+
+.program-kicker {
+  font-family: var(--font-display);
+  color: var(--studio-accent);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  margin-bottom: 7px;
+}
+
+.program-title {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.3vw, 46px);
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.program-subtitle {
+  font-family: var(--font-display);
+  color: rgba(246, 247, 251, .78);
+  font-size: clamp(13px, 1.4vw, 18px);
+  line-height: 1.45;
+  margin-top: 9px;
+  overflow-wrap: anywhere;
+}
+
+.subtitle-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  width: min(980px, calc(100vw - 56px));
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  background: rgba(5, 8, 12, .7);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--shadow);
+  z-index: 3;
+}
+
+.subtitle-text {
+  font-family: var(--font-display);
+  font-size: clamp(19px, 2.2vw, 32px);
+  line-height: 1.35;
+  font-weight: 900;
+  text-align: center;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, .55);
+  overflow-wrap: anywhere;
+}
+
+body.studio .comment-lane {
+  top: 26px;
+  right: 24px;
+  width: min(390px, 32vw);
+  min-width: 320px;
+  height: calc(100vh - 52px);
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(6, 10, 14, .76), rgba(6, 10, 14, .42));
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  mask-image: none;
+}
+
+body.studio .comment-lane::before {
+  content: "AI COMMENTS";
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  color: var(--studio-accent);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  z-index: 2;
+}
+
+body.studio .comment-stream {
+  right: 12px;
+  bottom: 14px;
+  width: calc(100% - 24px);
+  height: calc(100% - 58px);
+}
+
+body.studio .comment {
+  max-width: 100%;
+}
+
+body.studio.design-book .program-card {
+  border-left-color: #f2c14e;
+  background: linear-gradient(90deg, rgba(30, 20, 10, .86), rgba(12, 8, 4, .42));
+}
+
+body.studio.design-movie .program-card {
+  border-left-color: #ff6b7a;
+  background: linear-gradient(90deg, rgba(20, 8, 12, .88), rgba(8, 8, 12, .46));
+}
+
+body.studio.design-game .program-card {
+  border-left-color: #57d68d;
+  background: linear-gradient(90deg, rgba(5, 22, 16, .88), rgba(5, 10, 16, .5));
+}
+
+.comment-lane {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: min(42vw, 560px);
+  min-width: 360px;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 9%, #000 88%, transparent 100%);
+}
+
+.comment-stream {
+  position: absolute;
+  right: 18px;
+  bottom: 22px;
+  width: min(500px, calc(100vw - 36px));
+  height: calc(100% - 44px);
+}
+
+.comment {
+  --accent: #60b7ff;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: fit-content;
+  max-width: min(500px, 100%);
+  display: block;
+  padding: 9px 12px 10px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 10%, transparent), rgba(6, 8, 12, .58)),
+    rgba(6, 8, 12, .68);
+  box-shadow: var(--shadow);
+  animation: rise var(--life, 15s) linear forwards;
+  transform: translateY(0);
+  backdrop-filter: blur(7px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+}
+
+.comment.long {
+  max-width: min(520px, 100%);
+}
+
+.comment.super {
+  border-color: rgba(242, 193, 78, .78);
+  background:
+    linear-gradient(90deg, rgba(242, 193, 78, .34), rgba(96, 183, 255, .14)),
+    rgba(10, 8, 3, .78);
+}
+
+.comment .avatar {
+  display: none;
+}
+
+.comment .name {
+  font-family: var(--font-comment);
+  color: var(--accent);
+  display: inline;
+  font-size: clamp(14px, 1.35vw, 17px);
+  font-weight: 900;
+  line-height: 1.45;
+  margin-right: 8px;
+}
+
+.comment .meta {
+  color: var(--muted);
+  display: inline;
+  font-size: clamp(10px, 1vw, 12px);
+  font-weight: 800;
+  margin-right: 8px;
+}
+
+.comment .text {
+  font-family: var(--font-comment);
+  display: inline;
+  font-size: clamp(16px, 1.75vw, 23px);
+  line-height: 1.45;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+  letter-spacing: 0;
+}
+
+.comment.super .text::before {
+  content: "SUPER ";
+  color: var(--gold);
+  font-size: .72em;
+  letter-spacing: 0;
+  margin-right: 6px;
+}
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translateY(34px) scale(.98);
+  }
+  7% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  84% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(calc(-100vh - 120px)) scale(.98);
+  }
+}
+
+.status-strip {
+  position: fixed;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 5;
+}
+
+.pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .38);
+  color: var(--muted);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(8px);
+}
+
+.pill[data-state="on"] { color: var(--green); border-color: rgba(87, 214, 141, .42); }
+.pill[data-state="off"] { color: var(--red); border-color: rgba(255, 107, 122, .42); }
+
+.control-dock {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  width: min(440px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.dock-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, .04);
+}
+
+.dock-title {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0;
+  flex: 1;
+}
+
+.dock-title span {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.dock-body {
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+textarea,
+input,
+select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .32);
+  color: var(--text);
+  padding: 9px 10px;
+  outline: none;
+}
+
+textarea {
+  min-height: 88px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.three {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.personas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.persona-chip {
+  --accent: #60b7ff;
+  border: 1px solid color-mix(in srgb, var(--accent) 44%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.log {
+  min-height: 44px;
+  max-height: 96px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .25);
+  padding: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.mic-permission {
+  position: fixed;
+  inset: auto 18px 18px auto;
+  max-width: min(360px, calc(100vw - 36px));
+  border: 1px solid rgba(242, 193, 78, .4);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  pointer-events: auto;
+  z-index: 8;
+}
+
+.studio-settings {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.mic-permission strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.mic-permission p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.hidden { display: none !important; }
+
+@media (max-width: 720px) {
+  .brand-bug {
+    top: 10px;
+    left: 10px;
+  }
+
+  .program-card {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    bottom: 108px;
+  }
+
+  .subtitle-bar {
+    width: calc(100vw - 20px);
+    bottom: 12px;
+  }
+
+  .comment-lane {
+    width: 100vw;
+    min-width: 0;
+  }
+
+  body.studio .comment-lane {
+    inset: auto 10px 190px 10px;
+    width: auto;
+    min-width: 0;
+    height: 42vh;
+  }
+
+  .comment-stream {
+    right: 10px;
+    width: calc(100vw - 20px);
+  }
+
+  .comment .text {
+    font-size: clamp(16px, 5vw, 22px);
+  }
+
+  .control-dock {
+    width: calc(100vw - 20px);
+    left: 10px;
+    top: 10px;
+  }
+
+  .two { grid-template-columns: 1fr; }
+  .three { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<main class="overlay" aria-label="AIコメントオーバーレイ">
+  <section class="studio-frame" aria-hidden="true">
+    <div class="brand-bug">
+      <div class="brand-mark">RB</div>
+      <div class="brand-text">
+        <strong id="studioBrand">RAINY BRAIN</strong>
+        <span id="studioMode">solo recording studio</span>
+      </div>
+    </div>
+    <div id="avatarStage" class="avatar-stage empty"></div>
+    <div class="program-card">
+      <div id="studioKicker" class="program-kicker">BOOK REVIEW</div>
+      <div id="studioTitle" class="program-title">今日の紹介タイトル</div>
+      <div id="studioSubtitle" class="program-subtitle">AI人格コメントと一緒に、無編集で投稿できる収録画面。</div>
+    </div>
+    <div class="subtitle-bar">
+      <div id="liveSubtitle" class="subtitle-text">マイクを開始すると、ここに直近の文字起こしが出ます。</div>
+    </div>
+  </section>
+  <section class="comment-lane" aria-live="polite" aria-atomic="false">
+    <div id="commentStream" class="comment-stream"></div>
+  </section>
+</main>
+
+<aside id="dock" class="control-dock">
+  <div class="dock-head">
+    <div class="dock-title">AI Comment Overlay<span>OBS browser source / local personality comments</span></div>
+    <button id="hideDock" type="button" title="パネルを隠す">隠す</button>
+  </div>
+  <div class="dock-body">
+    <div class="row">
+      <button id="micButton" class="primary" type="button">マイク開始</button>
+      <button id="commentButton" class="good" type="button">コメント</button>
+      <button id="testSpeechButton" type="button">文字起こしテスト</button>
+      <button id="superButton" class="warn" type="button">Super</button>
+      <button id="copyLogButton" type="button">ログコピー</button>
+      <button id="clearCommentsButton" type="button">整理</button>
+      <button id="cleanButton" type="button">OBS表示</button>
+      <button id="managerButton" type="button">人格管理</button>
+    </div>
+
+    <div class="two">
+      <div class="field">
+        <label for="minDelay">最短秒</label>
+        <input id="minDelay" type="number" min="2" max="60" value="5">
+      </div>
+      <div class="field">
+        <label for="maxDelay">最長秒</label>
+        <input id="maxDelay" type="number" min="3" max="90" value="12">
+      </div>
+    </div>
+
+    <div class="three">
+      <div class="field">
+        <label for="themeSelect">テーマ</label>
+        <select id="themeSelect">
+          <option value="all">全部</option>
+          <option value="book">本紹介</option>
+          <option value="movie">映画紹介</option>
+          <option value="game">ゲーム実況</option>
+          <option value="talk">雑談</option>
+          <option value="study">解説</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="styleSelect">コメント傾向</label>
+        <select id="styleSelect">
+          <option value="mixed">自動</option>
+          <option value="listen">傾聴</option>
+          <option value="supplement">補足</option>
+          <option value="question">問い返し</option>
+          <option value="light">軽い反応</option>
+          <option value="hype">盛り上げ</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="densitySelect">密度</label>
+        <select id="densitySelect">
+          <option value="calm">静か</option>
+          <option value="normal" selected>標準</option>
+          <option value="busy">多め</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="promptInput">コメント指示文</label>
+      <textarea id="promptInput" placeholder="例: 本紹介用。ネタバレを避け、傾聴と要点整理を中心に、話し手の解釈を尊重する。"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="summaryText">本要約・録音メモから人格を作る</label>
+      <textarea id="summaryText" placeholder="本の要約、イベントメモ、録音の走り書きを貼る"></textarea>
+      <div class="row">
+        <input id="personaName" type="text" placeholder="人格名">
+        <button id="installPersona" type="button">人格インストール</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="personaJson">人格JSON</label>
+      <textarea id="personaJson" spellcheck="false"></textarea>
+      <div class="row">
+        <button id="saveJson" type="button">JSON保存</button>
+        <button id="exportJson" type="button">JSON出力</button>
+        <button id="resetJson" type="button">初期化</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>人格</label>
+      <div id="personaChips" class="personas"></div>
+    </div>
+
+    <div class="field">
+      <label>直近60秒の文字起こし</label>
+      <div id="transcriptLog" class="log"></div>
+      <div class="row">
+        <input id="manualTranscript" type="text" placeholder="手入力で話題を追加">
+        <button id="addManualTranscript" type="button">追加</button>
+      </div>
+    </div>
+
+    <div class="studio-settings">
+      <div class="field">
+        <label for="layoutSelect">画面デザイン</label>
+        <select id="layoutSelect">
+          <option value="transparent">透過コメントのみ</option>
+          <option value="studio">私用スタジオ枠</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="designSelect">デザイン</label>
+        <select id="designSelect">
+          <option value="allmedia">オール・ドメディア標準</option>
+          <option value="book">本紹介</option>
+          <option value="movie">映画紹介</option>
+          <option value="game">ゲーム実況</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="titleInput">タイトル</label>
+        <input id="titleInput" type="text" placeholder="今日の紹介タイトル">
+      </div>
+      <div class="field">
+        <label for="subtitleInput">サブタイトル</label>
+        <input id="subtitleInput" type="text" placeholder="本紹介 / 映画紹介 / 雑談メモ">
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="brandInput">表示名</label>
+          <input id="brandInput" type="text" placeholder="RAINY BRAIN">
+        </div>
+        <div class="field">
+          <label for="accentInput">差し色</label>
+          <input id="accentInput" type="color" value="#60b7ff">
+        </div>
+      </div>
+      <div class="field">
+        <label for="avatarInput">Vキャラ素材URL / パス</label>
+        <input id="avatarInput" type="text" placeholder="例: assets/v-character.webm または file:///C:/.../v.png">
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="status-strip">
+  <span id="micState" class="pill" data-state="off">MIC OFF</span>
+  <span id="personaState" class="pill">0 PERSONAS</span>
+  <span id="nextState" class="pill">NEXT --s</span>
+</div>
+
+<div id="micPermission" class="mic-permission">
+  <strong>マイクは手動で開始</strong>
+  <p>ブラウザの仕様で、音声認識はクリック後に動きます。OBSではこのHTMLを開いてから「マイク開始」を押してください。</p>
+  <button id="permissionStart" class="primary" type="button">マイク開始</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "ai_comment_overlay_personas_v1";
+  const SETTINGS_KEY = "ai_comment_overlay_settings_v1";
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const params = new URLSearchParams(location.search);
+
+  const defaultPersonas = [
+    {
+      id: "listener",
+      name: "傾聴さん",
+      color: "#60b7ff",
+      tone: "短く受け止める。話し手の座標を急に奪わない。",
+      length: "short",
+      theme: "talk",
+      tags: ["雑談", "talk", "傾聴"],
+      examples: [
+        "今の言い方、かなり大事そう。",
+        "そこ、少し余白を残して聞きたい。",
+        "話の温度が上がったね。",
+        "その接続面、ちゃんと見えてる。",
+        "無理に結論へ寄せなくてよさそう。"
+      ]
+    },
+    {
+      id: "book",
+      name: "本棚の声",
+      color: "#f2c14e",
+      tone: "本の構造や比喩を拾って静かに返す。",
+      length: "medium",
+      theme: "book",
+      tags: ["本紹介", "book", "読書"],
+      examples: [
+        "今の話は、章の見出しにすると強い。",
+        "本から人格が立ち上がる感じ、ここで起きてる。",
+        "要約よりも、読後の姿勢がコメントになってる。",
+        "その本は知識じゃなくて、聞き手の型を残してるのかも。"
+      ]
+    },
+    {
+      id: "anthro",
+      name: "文化人類学者",
+      color: "#57d68d",
+      tone: "個人と世界、儀礼、空気、コミュニケーションを観察する。",
+      length: "long",
+      theme: "study",
+      tags: ["解説", "study", "文化人類学"],
+      examples: [
+        "内容だけでなく、場にどんな安心が発生しているかを見ると面白い。",
+        "AIを人間の代替ではなく、周辺世界への接続面として置くのはかなり自然。",
+        "コメント欄は評価欄ではなく、共同体の呼吸として設計できる。",
+        "個は世界であり、世界は個である、という見方が配信の空気を変える。"
+      ]
+    },
+    {
+      id: "uno",
+      name: "宇野書店イベント",
+      color: "#c890d8",
+      tone: "書店イベントの余韻として、読書と対話の場を支える。",
+      length: "medium",
+      theme: "book",
+      tags: ["本紹介", "book", "宇野書店"],
+      examples: [
+        "書店の空気ごとコメント人格に移すの、かなりいい。",
+        "本を読んだあとに残る声を、配信のリスナーへ育てたい。",
+        "イベントの一回性が、ここで少し保存されている感じがする。",
+        "このコメントは販促というより、読書会の余韻に近い。"
+      ]
+    },
+    {
+      id: "edu_economy_producer",
+      name: "教育経済プロデューサー",
+      color: "#57d68d",
+      tone: "Roblox、YouTube、マネーボードゲームをつなぎ、教育価値と収益性を両方見ながら長期戦略をコメントする。",
+      length: "long",
+      theme: "study",
+      tags: ["教育", "経済", "Roblox", "YouTube", "マネーボードゲーム", "収益化"],
+      examples: [
+        "Robloxは最初から本丸にせず、YouTubeで教材としての見せ方を育ててから導入するのが堅い。",
+        "マネーボードゲームは遊びで終わらせず、経済の意思決定を体験できる教材にすると価値が出る。",
+        "今の話は収益化だけでなく、教育コンテンツとして継続できる需給を作る視点が大事。",
+        "YouTube動画は集客だけでなく、Roblox導入前の教科書として機能させられる。",
+        "完成度を上げる順番は、ボードゲーム、解説動画、オンライン体験、Roblox展開の順が自然。"
+      ]
+    },
+    {
+      id: "ai_youtube_creator",
+      name: "AI YouTube投稿者",
+      color: "#c890d8",
+      tone: "AI動画投稿者として、低品質量産ではなく、普遍的に残る高品質コンテンツ、教育IP、メタバース学習空間への接続をコメントする。",
+      length: "long",
+      theme: "study",
+      tags: ["AI動画", "YouTube", "Roblox", "メタバース", "マネーボー", "教育IP"],
+      examples: [
+        "AI動画は量産できるほど、低品質に流れると一気に意欲を削る。残るものを作る意識が必要。",
+        "Roblox学習空間は、動画だけで終わらない教育IPの受け皿として考えると強い。",
+        "マネーボーをオンライン化するなら、アナログで学ぶ手触りをどう残すかが核になる。",
+        "YouTubeは単なる投稿先ではなく、メタバース学習空間へ入る前の導入教材になる。",
+        "オンラインコミュニティとオフライン塾をつなぐなら、動画は共通言語として機能する。"
+      ]
+    }
+  ];
+
+  const els = {
+    body: document.body,
+    stream: document.getElementById("commentStream"),
+    dock: document.getElementById("dock"),
+    hideDock: document.getElementById("hideDock"),
+    micButton: document.getElementById("micButton"),
+    commentButton: document.getElementById("commentButton"),
+    testSpeechButton: document.getElementById("testSpeechButton"),
+    superButton: document.getElementById("superButton"),
+    copyLogButton: document.getElementById("copyLogButton"),
+    clearCommentsButton: document.getElementById("clearCommentsButton"),
+    cleanButton: document.getElementById("cleanButton"),
+    managerButton: document.getElementById("managerButton"),
+    minDelay: document.getElementById("minDelay"),
+    maxDelay: document.getElementById("maxDelay"),
+    themeSelect: document.getElementById("themeSelect"),
+    styleSelect: document.getElementById("styleSelect"),
+    densitySelect: document.getElementById("densitySelect"),
+    promptInput: document.getElementById("promptInput"),
+    summaryText: document.getElementById("summaryText"),
+    personaName: document.getElementById("personaName"),
+    installPersona: document.getElementById("installPersona"),
+    personaJson: document.getElementById("personaJson"),
+    saveJson: document.getElementById("saveJson"),
+    exportJson: document.getElementById("exportJson"),
+    resetJson: document.getElementById("resetJson"),
+    personaChips: document.getElementById("personaChips"),
+    transcriptLog: document.getElementById("transcriptLog"),
+    manualTranscript: document.getElementById("manualTranscript"),
+    addManualTranscript: document.getElementById("addManualTranscript"),
+    micState: document.getElementById("micState"),
+    personaState: document.getElementById("personaState"),
+    nextState: document.getElementById("nextState"),
+    micPermission: document.getElementById("micPermission"),
+    permissionStart: document.getElementById("permissionStart"),
+    layoutSelect: document.getElementById("layoutSelect"),
+    designSelect: document.getElementById("designSelect"),
+    titleInput: document.getElementById("titleInput"),
+    subtitleInput: document.getElementById("subtitleInput"),
+    brandInput: document.getElementById("brandInput"),
+    accentInput: document.getElementById("accentInput"),
+    avatarInput: document.getElementById("avatarInput"),
+    avatarStage: document.getElementById("avatarStage"),
+    studioBrand: document.getElementById("studioBrand"),
+    studioMode: document.getElementById("studioMode"),
+    studioKicker: document.getElementById("studioKicker"),
+    studioTitle: document.getElementById("studioTitle"),
+    studioSubtitle: document.getElementById("studioSubtitle"),
+    liveSubtitle: document.getElementById("liveSubtitle")
+  };
+
+  let personas = loadPersonas();
+  let recognition = null;
+  let listening = false;
+  let transcriptItems = [];
+  let commentTimer = null;
+  let countdownTimer = null;
+  let nextAt = 0;
+  let commentLog = [];
+
+  init();
+
+  function init() {
+    const settings = loadSettings();
+    els.minDelay.value = params.get("min") || settings.minDelay;
+    els.maxDelay.value = params.get("max") || settings.maxDelay;
+    els.themeSelect.value = settings.theme || "all";
+    els.styleSelect.value = params.get("style") || settings.commentStyle || "mixed";
+    els.densitySelect.value = params.get("density") || settings.density || "normal";
+    els.layoutSelect.value = params.get("layout") || settings.layout || "transparent";
+    els.designSelect.value = params.get("design") || settings.design || "allmedia";
+    if (["book", "movie", "game"].includes(els.designSelect.value) && !params.get("theme")) {
+      els.themeSelect.value = els.designSelect.value;
+    }
+    if (params.get("theme")) {
+      els.themeSelect.value = params.get("theme");
+    }
+    els.titleInput.value = params.get("title") || settings.title || "";
+    els.subtitleInput.value = params.get("subtitle") || settings.subtitle || "";
+    els.brandInput.value = params.get("brand") || settings.brand || "ALL DOMEDIA";
+    els.accentInput.value = params.get("accent") || settings.accent || "#60b7ff";
+    els.avatarInput.value = params.get("avatar") || settings.avatar || "";
+    els.promptInput.value = params.get("prompt") || settings.prompt || defaultPromptForTheme(els.themeSelect.value);
+    els.promptInput.dataset.autoPrompt = params.get("prompt") || settings.prompt ? "0" : "1";
+    els.personaJson.value = JSON.stringify(personas, null, 2);
+    applyStudioSettings();
+    renderPersonaChips();
+    updateTranscript();
+    scheduleNextComment(1200);
+
+    if (params.get("layout") === "studio") {
+      els.body.classList.add("studio");
+    }
+    if (params.get("clean") === "1" || params.get("obs") === "1") {
+      els.body.classList.add("clean");
+    }
+    applyVisibilityParams();
+
+    els.hideDock.addEventListener("click", () => els.dock.classList.add("hidden"));
+    els.cleanButton.addEventListener("click", () => els.body.classList.toggle("clean"));
+    els.managerButton.addEventListener("click", () => window.open("ai-comment-personas.html", "_blank"));
+    els.commentButton.addEventListener("click", () => createComment());
+    els.testSpeechButton.addEventListener("click", addTestTranscript);
+    els.superButton.addEventListener("click", () => createComment({ superChat: true }));
+    els.copyLogButton.addEventListener("click", copyCommentLog);
+    els.clearCommentsButton.addEventListener("click", clearVisibleComments);
+    els.micButton.addEventListener("click", toggleMic);
+    els.permissionStart.addEventListener("click", toggleMic);
+    els.addManualTranscript.addEventListener("click", addManualTranscript);
+    els.manualTranscript.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addManualTranscript();
+    });
+    els.installPersona.addEventListener("click", installFromSummary);
+    els.saveJson.addEventListener("click", saveJson);
+    els.exportJson.addEventListener("click", exportJson);
+    els.resetJson.addEventListener("click", resetJson);
+    els.minDelay.addEventListener("change", saveSettings);
+    els.maxDelay.addEventListener("change", saveSettings);
+    els.themeSelect.addEventListener("change", () => {
+      if (!els.promptInput.value.trim() || els.promptInput.dataset.autoPrompt === "1") {
+        els.promptInput.value = defaultPromptForTheme(els.themeSelect.value);
+        els.promptInput.dataset.autoPrompt = "1";
+      }
+      saveSettings();
+      renderPersonaChips();
+      createComment({ text: `テーマを${themeLabel(els.themeSelect.value)}に切り替えた。`, persona: pickPersona() });
+    });
+    els.styleSelect.addEventListener("change", () => {
+      saveSettings();
+      createComment({ text: `コメント傾向を${styleLabel(els.styleSelect.value)}にした。`, persona: pickPersona() });
+    });
+    els.densitySelect.addEventListener("change", () => {
+      applyDensity();
+      saveSettings();
+      scheduleNextComment(800);
+    });
+    els.designSelect.addEventListener("change", () => {
+      els.accentInput.value = designAccent(els.designSelect.value);
+      if (els.designSelect.value !== "allmedia") {
+        els.themeSelect.value = els.designSelect.value;
+      }
+      if (!els.promptInput.value.trim() || els.promptInput.dataset.autoPrompt === "1") {
+        els.promptInput.value = defaultPromptForTheme(els.themeSelect.value);
+        els.promptInput.dataset.autoPrompt = "1";
+      }
+      applyStudioSettings();
+      saveSettings();
+      renderPersonaChips();
+    });
+    els.promptInput.addEventListener("input", () => {
+      els.promptInput.dataset.autoPrompt = "0";
+      applyStudioSettings();
+      saveSettings();
+    });
+    [els.layoutSelect, els.designSelect, els.titleInput, els.subtitleInput, els.brandInput, els.accentInput, els.avatarInput].forEach((control) => {
+      control.addEventListener("input", () => {
+        applyStudioSettings();
+        saveSettings();
+      });
+      control.addEventListener("change", () => {
+        applyStudioSettings();
+        saveSettings();
+      });
+    });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key.toLowerCase() === "c") els.body.classList.toggle("clean");
+      if (event.key.toLowerCase() === "d") els.dock.classList.toggle("hidden");
+      if (event.key === " ") createComment();
+    });
+    window.addEventListener("storage", (event) => {
+      if (event.key !== STORAGE_KEY) return;
+      personas = loadPersonas();
+      els.personaJson.value = JSON.stringify(personas, null, 2);
+      renderPersonaChips();
+    });
+
+    setTimeout(() => {
+      createComment({ text: "本要約からコメント人格を育てる準備、できてる。", persona: personas[1] });
+    }, 500);
+    if (params.get("test") === "1") {
+      setTimeout(addTestTranscript, 1200);
+      setTimeout(addTestTranscript, 3600);
+    }
+  }
+
+  function loadPersonas() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return structuredClone(defaultPersonas);
+      const parsed = JSON.parse(saved);
+      return mergeDefaultPersonas(sanitizePersonas(parsed));
+    } catch {
+      return structuredClone(defaultPersonas);
+    }
+  }
+
+  function mergeDefaultPersonas(list) {
+    const ids = new Set(list.map(persona => persona.id));
+    const adding = structuredClone(defaultPersonas).filter(persona => !ids.has(persona.id));
+    return [...adding, ...list];
+  }
+
+  function loadSettings() {
+    try {
+      return {
+        minDelay: 5,
+        maxDelay: 12,
+        theme: "all",
+        commentStyle: "mixed",
+        density: "normal",
+        layout: "transparent",
+        design: "allmedia",
+        title: "",
+        subtitle: "",
+        brand: "ALL DOMEDIA",
+        accent: "#60b7ff",
+        avatar: "",
+        prompt: "",
+        ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")
+      };
+    } catch {
+      return { minDelay: 5, maxDelay: 12, theme: "all", commentStyle: "mixed", density: "normal", layout: "transparent", design: "allmedia", title: "", subtitle: "", brand: "ALL DOMEDIA", accent: "#60b7ff", avatar: "", prompt: "" };
+    }
+  }
+
+  function saveSettings() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      minDelay: Number(els.minDelay.value) || 5,
+      maxDelay: Number(els.maxDelay.value) || 12,
+      theme: els.themeSelect.value,
+      commentStyle: els.styleSelect.value,
+      density: els.densitySelect.value,
+      layout: els.layoutSelect.value,
+      design: els.designSelect.value,
+      title: els.titleInput.value,
+      subtitle: els.subtitleInput.value,
+      brand: els.brandInput.value,
+      accent: els.accentInput.value,
+      avatar: els.avatarInput.value,
+      prompt: els.promptInput.value
+    }));
+  }
+
+  function applyStudioSettings() {
+    const studio = els.layoutSelect.value === "studio";
+    els.body.classList.toggle("studio", studio);
+    els.body.classList.remove("design-book", "design-movie", "design-game");
+    if (["book", "movie", "game"].includes(els.designSelect.value)) {
+      els.body.classList.add(`design-${els.designSelect.value}`);
+    }
+    const accent = els.accentInput.value || designAccent(els.designSelect.value);
+    els.body.style.setProperty("--studio-accent", accent);
+    els.studioBrand.textContent = els.brandInput.value.trim() || "ALL DOMEDIA";
+    els.studioMode.textContent = `${themeLabel(els.themeSelect.value)} / ${styleLabel(els.styleSelect.value)} / 指示文ON`;
+    els.studioKicker.textContent = themeKicker(els.themeSelect.value);
+    els.studioTitle.textContent = els.titleInput.value.trim() || "今日の紹介タイトル";
+    els.studioSubtitle.textContent = els.subtitleInput.value.trim() || "AI人格コメントと一緒に、無編集で投稿できる収録画面。";
+    updateAvatarAsset();
+  }
+
+  function applyVisibilityParams() {
+    els.body.classList.toggle("hide-program", params.get("program") === "0");
+    els.body.classList.toggle("hide-caption", params.get("caption") === "0");
+    els.body.classList.toggle("hide-comments", params.get("comments") === "0");
+    els.body.classList.toggle("hide-avatar", params.get("avatarSlot") === "0");
+  }
+
+  function updateAvatarAsset() {
+    const src = els.avatarInput.value.trim();
+    els.avatarStage.innerHTML = "";
+    els.avatarStage.classList.toggle("empty", !src);
+    if (!src) return;
+
+    const isVideo = /\.(webm|mp4|mov|m4v)(\?.*)?$/i.test(src);
+    const media = document.createElement(isVideo ? "video" : "img");
+    media.src = src;
+    if (isVideo) {
+      media.autoplay = true;
+      media.loop = true;
+      media.muted = true;
+      media.playsInline = true;
+    }
+    els.avatarStage.append(media);
+  }
+
+  function applyDensity() {
+    const density = els.densitySelect.value;
+    if (density === "calm") {
+      els.minDelay.value = 10;
+      els.maxDelay.value = 18;
+    } else if (density === "busy") {
+      els.minDelay.value = 4;
+      els.maxDelay.value = 8;
+    } else {
+      els.minDelay.value = 5;
+      els.maxDelay.value = 12;
+    }
+  }
+
+  function sanitizePersonas(raw) {
+    if (!Array.isArray(raw)) throw new Error("personas must be array");
+    const clean = raw.map((item, index) => ({
+      id: String(item.id || `persona_${index + 1}`).replace(/[^\w-]/g, "_"),
+      name: String(item.name || `人格${index + 1}`).slice(0, 24),
+      color: /^#[0-9a-fA-F]{6}$/.test(item.color) ? item.color : defaultPersonas[index % defaultPersonas.length].color,
+      tone: String(item.tone || "自然に反応する").slice(0, 160),
+      instruction: String(item.instruction || item.tone || item.source || "").slice(0, 1200),
+      length: ["short", "medium", "long"].includes(item.length) ? item.length : "medium",
+      enabled: item.enabled !== false,
+      theme: ["book", "movie", "game", "talk", "study"].includes(item.theme) ? item.theme : "",
+      source: String(item.source || "").slice(0, 4000),
+      tags: Array.isArray(item.tags) ? item.tags.map(v => String(v).trim()).filter(Boolean).slice(0, 8) : [],
+      examples: Array.isArray(item.examples) ? item.examples.map(v => String(v).trim()).filter(Boolean).slice(0, 16) : []
+    })).filter(item => item.examples.length);
+    if (!clean.length) throw new Error("no examples");
+    return clean;
+  }
+
+  function renderPersonaChips() {
+    els.personaChips.innerHTML = "";
+    activePersonas().forEach((persona) => {
+      const chip = document.createElement("span");
+      chip.className = "persona-chip";
+      chip.style.setProperty("--accent", persona.color);
+      chip.textContent = persona.name;
+      els.personaChips.append(chip);
+    });
+    els.personaState.textContent = `${activePersonas().length} ON AIR`;
+  }
+
+  function saveJson() {
+    try {
+      personas = sanitizePersonas(JSON.parse(els.personaJson.value));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(personas));
+      renderPersonaChips();
+      createComment({ text: "人格JSONを読み込んだ。コメント欄の空気が少し変わる。", persona: personas[0] });
+    } catch (error) {
+      createComment({ text: `JSONに直せない箇所がある: ${error.message}`, persona: personas[0] });
+    }
+  }
+
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(personas, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ai-comment-personas.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function resetJson() {
+    personas = structuredClone(defaultPersonas);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(personas));
+    els.personaJson.value = JSON.stringify(personas, null, 2);
+    renderPersonaChips();
+    createComment({ text: "初期人格に戻した。ここからまた育てられる。", persona: personas[0] });
+  }
+
+  function installFromSummary() {
+    const source = els.summaryText.value.trim();
+    if (!source) {
+      createComment({ text: "要約かメモを貼ると、人格の種にできる。", persona: personas[0] });
+      return;
+    }
+
+    const name = (els.personaName.value.trim() || guessName(source)).slice(0, 18);
+    const keywords = extractKeywords(source);
+    const color = pickColor(source);
+    const examples = buildExamples(source, keywords);
+    const persona = {
+      id: `book_${Date.now()}`,
+      name,
+      color,
+      tone: `要約から生まれた人格。核語: ${keywords.slice(0, 6).join(" / ")}`,
+      length: source.length > 420 ? "long" : "medium",
+      enabled: true,
+      source,
+      tags: keywords.slice(0, 6),
+      examples
+    };
+
+    personas.push(persona);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(personas));
+    els.personaJson.value = JSON.stringify(personas, null, 2);
+    renderPersonaChips();
+    createComment({ text: `${name}をコメント人格としてインストールした。`, persona, superChat: true });
+  }
+
+  function guessName(text) {
+    const titleMatch = text.match(/(?:タイトル|書名|本|イベント)[:：]\s*([^\n。]+)/);
+    if (titleMatch) return titleMatch[1].trim();
+    if (text.includes("宇野")) return "宇野書店の声";
+    if (text.includes("文化人類")) return "人類学の声";
+    if (text.includes("山") || text.includes("座標")) return "山と座標";
+    return "読後の声";
+  }
+
+  function extractKeywords(text) {
+    const normalized = text.replace(/[、。,.!?！？「」『』（）()[\]\n\r]/g, " ");
+    const words = normalized.split(/\s+/).filter(word => word.length >= 2);
+    const preferred = ["人格", "本要約", "VTuber", "コメント", "安心感", "ライブ感", "文化人類学", "アトモスフィア", "座標", "世界", "個人", "AI", "対話", "書店", "イベント"];
+    const counts = new Map();
+    [...preferred, ...words].forEach((word) => {
+      if (text.includes(word)) counts.set(word, (counts.get(word) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([word]) => word).slice(0, 10);
+  }
+
+  function buildExamples(text, keywords) {
+    const sentences = text
+      .split(/[。！？\n]/)
+      .map(v => v.trim())
+      .filter(v => v.length >= 10)
+      .slice(0, 8);
+    const base = [
+      `${keywords[0] || "この話"}、コメント欄に置くと場が変わる。`,
+      `今の話は${keywords[1] || "本"}から生まれた人格っぽい。`,
+      `聞き手がいるだけで、配信の安心感が立ち上がる。`,
+      `これは結論より、対話の空気を育てる話かもしれない。`
+    ];
+    const clipped = sentences.map(sentence => {
+      const clean = sentence.replace(/\s+/g, "");
+      return clean.length > 46 ? `${clean.slice(0, 46)}...` : clean;
+    });
+    return [...base, ...clipped].slice(0, 12);
+  }
+
+  function pickColor(text) {
+    if (text.includes("本") || text.includes("書店")) return "#f2c14e";
+    if (text.includes("文化") || text.includes("世界")) return "#57d68d";
+    if (text.includes("VTuber") || text.includes("配信")) return "#60b7ff";
+    if (text.includes("殉教") || text.includes("オブセッション")) return "#ff6b7a";
+    return ["#60b7ff", "#f2c14e", "#57d68d", "#c890d8", "#ff8f5a"][Date.now() % 5];
+  }
+
+  function toggleMic() {
+    if (!SpeechRecognition) {
+      createComment({ text: "このブラウザはWeb Speech APIに未対応。Chrome系で開くと動く。", persona: personas[0] });
+      return;
+    }
+
+    if (listening) {
+      recognition.stop();
+      setMicState(false);
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = "ja-JP";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => setMicState(true);
+    recognition.onerror = (event) => {
+      setMicState(false);
+      createComment({ text: `音声認識が止まった: ${event.error}`, persona: personas[0] });
+    };
+    recognition.onend = () => {
+      if (listening) {
+        window.setTimeout(() => {
+          try { recognition.start(); } catch { setMicState(false); }
+        }, 600);
+      }
+    };
+    recognition.onresult = handleSpeechResult;
+
+    try {
+      recognition.start();
+      els.micPermission.classList.add("hidden");
+    } catch (error) {
+      createComment({ text: `マイク開始に失敗: ${error.message}`, persona: personas[0] });
+    }
+  }
+
+  function setMicState(value) {
+    listening = value;
+    els.micState.dataset.state = value ? "on" : "off";
+    els.micState.textContent = value ? "MIC ON" : "MIC OFF";
+    els.micButton.textContent = value ? "マイク停止" : "マイク開始";
+  }
+
+  function handleSpeechResult(event) {
+    let finalText = "";
+    let interimText = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const text = event.results[i][0].transcript.trim();
+      if (event.results[i].isFinal) finalText += text;
+      else interimText += text;
+    }
+    if (finalText) {
+      transcriptItems.push({ text: finalText, at: Date.now() });
+      trimTranscript();
+    }
+    updateTranscript(interimText);
+  }
+
+  function addTestTranscript() {
+    const samples = {
+      book: "この本は知識を増やすというより、読んだ後の姿勢が少し変わるところが面白いです",
+      movie: "この映画は演出と沈黙の使い方が印象的で、ネタバレせずに話すのが難しい作品です",
+      game: "ここは初見だとかなり迷う場面で、探索したくなる導線がうまく作られています",
+      talk: "今話していることは、安心して聞けるコメント欄をどう作るかというテーマです",
+      study: "文化人類学的には、内容だけでなく場の空気と関係性を見るのが大事です",
+      all: "今日はオール・ドメディアの収録テストとして、AIコメントと字幕の流れを確認しています"
+    };
+    const theme = els.themeSelect ? els.themeSelect.value : "all";
+    transcriptItems.push({ text: samples[theme] || samples.all, at: Date.now() });
+    trimTranscript();
+    updateTranscript();
+    createComment();
+  }
+
+  function addManualTranscript() {
+    const text = els.manualTranscript.value.trim();
+    if (!text) return;
+    transcriptItems.push({ text, at: Date.now() });
+    els.manualTranscript.value = "";
+    trimTranscript();
+    updateTranscript();
+    createComment();
+  }
+
+  function trimTranscript() {
+    const cutoff = Date.now() - 60000;
+    transcriptItems = transcriptItems.filter(item => item.at >= cutoff);
+  }
+
+  function recentTranscript() {
+    trimTranscript();
+    return transcriptItems.map(item => item.text).join(" ");
+  }
+
+  function updateTranscript(interim = "") {
+    trimTranscript();
+    const text = [recentTranscript(), interim ? `...${interim}` : ""].filter(Boolean).join(" ");
+    els.transcriptLog.textContent = text || "まだ文字起こしはありません";
+    if (els.liveSubtitle) {
+      const latest = interim || (transcriptItems.length ? transcriptItems[transcriptItems.length - 1].text : "");
+      els.liveSubtitle.textContent = latest || "マイクを開始すると、ここに直近の文字起こしが出ます。";
+    }
+  }
+
+  function scheduleNextComment(delay = null) {
+    clearTimeout(commentTimer);
+    clearInterval(countdownTimer);
+
+    const min = Math.max(2, Number(els.minDelay.value) || 5);
+    const max = Math.max(min + 1, Number(els.maxDelay.value) || 12);
+    const wait = delay ?? randomInt(min * 1000, max * 1000);
+    nextAt = Date.now() + wait;
+
+    countdownTimer = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000));
+      els.nextState.textContent = `NEXT ${remaining}s`;
+    }, 250);
+
+    commentTimer = setTimeout(() => {
+      createComment();
+      scheduleNextComment();
+    }, wait);
+  }
+
+  function createComment(options = {}) {
+    const persona = options.persona || pickPersona();
+    const transcript = recentTranscript();
+    const text = options.text || buildCommentText(persona, transcript);
+    const node = document.createElement("article");
+    const long = text.length >= 34 || persona.length === "long";
+    const superChat = options.superChat || Math.random() < 0.06;
+    node.className = `comment${long ? " long" : ""}${superChat ? " super" : ""}`;
+    node.style.setProperty("--accent", persona.color);
+    node.style.setProperty("--life", `${long ? randomInt(17, 23) : randomInt(13, 18)}s`);
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.textContent = persona.name.slice(0, 1);
+
+    const head = document.createElement("div");
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = `@${persona.name}`;
+    const meta = document.createElement("span");
+    meta.className = "meta";
+    meta.textContent = superChat ? "Super Chat" : "AI";
+    head.append(name, meta);
+
+    const body = document.createElement("div");
+    body.className = "text";
+    body.textContent = text;
+
+    node.append(avatar, head, body);
+    els.stream.append(node);
+    commentLog.push({
+      at: new Date().toISOString(),
+      user: persona.name,
+      type: superChat ? "Super Chat" : "AI",
+      text
+    });
+    if (commentLog.length > 300) commentLog = commentLog.slice(-300);
+    node.addEventListener("animationend", () => node.remove());
+  }
+
+  async function copyCommentLog() {
+    const lines = commentLog.map(item => `[${item.at}] @${item.user} ${item.type}: ${item.text}`);
+    const text = lines.join("\n") || "まだコメントログはありません";
+    try {
+      await navigator.clipboard.writeText(text);
+      createComment({ text: "コメントログをコピーした。", persona: personas[0] });
+    } catch {
+      els.transcriptLog.textContent = text;
+    }
+  }
+
+  function clearVisibleComments() {
+    els.stream.innerHTML = "";
+    createComment({ text: "画面上のコメントを整理した。ログは残してある。", persona: personas[0] });
+  }
+
+  function pickPersona() {
+    const active = activePersonas();
+    return active[Math.floor(Math.random() * active.length)] || personas[0] || defaultPersonas[0];
+  }
+
+  function activePersonas() {
+    const theme = els.themeSelect ? els.themeSelect.value : "all";
+    const active = personas.filter(persona => persona.enabled !== false);
+    if (theme === "all") return active;
+    const themed = active.filter(persona => {
+      const tags = (persona.tags || []).map(tag => String(tag).toLowerCase());
+      const source = `${persona.name} ${persona.tone} ${tags.join(" ")}`.toLowerCase();
+      return persona.theme === theme || source.includes(theme) || source.includes(themeLabel(theme).toLowerCase());
+    });
+    return themed.length ? themed : active;
+  }
+
+  function buildCommentText(persona, transcript) {
+    const examples = persona.examples || [];
+    const template = examples[Math.floor(Math.random() * examples.length)] || "今の話、聞いてる。";
+    const instruction = getCommentInstruction();
+    const mode = readInstructionMode(instruction);
+
+    if (!transcript) {
+      const idleHooks = {
+        book: ["本の入口、ゆっくり開いていこう。", "ネタバレなしで、この余白ごと聞きたい。"],
+        movie: ["ネタバレは避けつつ、空気感を拾っていこう。", "映像の話、どこから入るか楽しみ。"],
+        game: ["プレイの邪魔にならない距離で見てる。", "今の画面、短く反応していくね。"],
+        listen: ["急がず聞く感じでいこう。", "話し手の解釈を大事にしたい。"]
+      };
+      const idlePool = idleHooks[mode.primary] || idleHooks.listen;
+      return Math.random() < 0.45 ? idlePool[Math.floor(Math.random() * idlePool.length)] : template;
+    }
+
+    const words = extractKeywords(transcript);
+    const hook = words[0] || "";
+    const style = els.styleSelect ? els.styleSelect.value : "mixed";
+    const shouldReflect = Math.random() < (style === "listen" || mode.listen ? 0.34 : 0.58);
+    if (!shouldReflect || !hook) return template;
+
+    const guided = personaGuidedComment(persona, transcript, hook);
+    if (guided && Math.random() < 0.78) return guided;
+
+    const instructionHooks = {
+      book: [
+        `${hook}、本紹介としては読みたくなる余白を残したい。`,
+        `${hook}の要点、断定せずにそっと置くのがよさそう。`,
+        `${hook}は読後感につながる言葉として聞こえる。`
+      ],
+      movie: [
+        `${hook}、ネタバレせずに見どころだけ拾うならここだね。`,
+        `${hook}の話、映像や演出の入口として反応したい。`,
+        `${hook}は言いすぎず、観たくなる距離で止めたい。`
+      ],
+      game: [
+        `${hook}、いまは短く反応でよさそう。`,
+        `${hook}いいね。プレイの流れを邪魔しない感じで見てる。`,
+        `${hook}、攻略より初見の驚きを残したい。`
+      ],
+      listen: [
+        `${hook}のところ、話し手の解釈を尊重して聞きたい。`,
+        `${hook}、すぐ結論にせず受け止めたい。`,
+        `${hook}の温度感、ちゃんと残ってる。`
+      ],
+      question: [
+        `${hook}って、どこが一番引っかかったんだろう？`,
+        `${hook}を別の角度で見ると何が見えるかな？`,
+        `${hook}は次の話の入口になりそう。`
+      ],
+      hype: [
+        `${hook}きた。ここは少し熱が上がるところ。`,
+        `${hook}、今の流れでかなり効いてる。`,
+        `${hook}の反応、コメント欄が拾いたくなるやつ。`
+      ]
+    };
+
+    if (mode.primary && Math.random() < 0.72) {
+      const pool = instructionHooks[mode.primary] || instructionHooks.listen;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    const styleHooks = {
+      listen: [
+        `${hook}の話、いま丁寧に聞きたい。`,
+        `${hook}、急いでまとめなくてよさそう。`,
+        `今の${hook}、少し余白を置いて受け止めたい。`
+      ],
+      supplement: [
+        `${hook}は、背景を一言足すともっと伝わりそう。`,
+        `ここで${hook}の前提を置くと見やすくなる。`,
+        `${hook}、今の流れの補助線になってる。`
+      ],
+      question: [
+        `${hook}って、どこが一番刺さったんだろう？`,
+        `今の${hook}、別の見方だと何になる？`,
+        `${hook}を初見の人に言うなら、どこから話す？`
+      ],
+      light: [
+        `${hook}、そこ気になる。`,
+        `今の${hook}いいね。`,
+        `${hook}の空気、出てきた。`
+      ],
+      hype: [
+        `${hook}きた。ここ見どころ。`,
+        `今の${hook}、コメント欄が反応するやつ。`,
+        `${hook}の話、かなり盛り上がってきた。`
+      ]
+    };
+
+    if (style !== "mixed" && styleHooks[style]) {
+      const pool = styleHooks[style];
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    const shortHooks = [
+      `${hook}の話、今かなり来てる。`,
+      `今の${hook}、コメント人格が拾いたがってる。`,
+      `${hook}を急いで結論にしないの、いい。`,
+      `この流れだと${hook}が場の中心に見える。`
+    ];
+
+    const longHooks = [
+      `${hook}という言葉が出た瞬間、配信の空気が少し具体になった。`,
+      `直近の話を聞くと、${hook}は情報というより場の温度を運んでいる。`,
+      `${hook}をコメントが拾うことで、話し手と聞き手の距離が少し縮まる。`
+    ];
+
+    const pool = persona.length === "long" ? longHooks : shortHooks;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  function personaGuidedComment(persona, transcript, hook) {
+    const guide = `${persona.name || ""} ${persona.tone || ""} ${persona.instruction || ""} ${persona.source || ""} ${(persona.tags || []).join(" ")} ${transcript}`;
+    const includes = (...words) => words.some(word => guide.includes(word));
+
+    if (includes("AI動画", "低品質", "普遍的", "メタバース", "マネーボー", "教育IP")) {
+      const pool = [
+        `${hook}は、AI動画を量産で終わらせず普遍的に残すための判断軸になりそう。`,
+        `${hook}を動画にするなら、短期の再生数より教育IPとして残る形を優先したい。`,
+        `${hook}はYouTube単体ではなく、メタバース学習空間への導入として設計できる。`,
+        `${hook}の話、マネーボーをオンライン化する時の手触りをどう残すかに関わってる。`
+      ];
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    if (includes("Roblox", "YouTube", "マネーボードゲーム", "収益化", "経済", "需給")) {
+      const pool = [
+        `${hook}はRobloxへ急ぐより、YouTubeで教材としての需要を確認してからが堅い。`,
+        `${hook}をマネーボードゲームに接続すると、経済の意思決定を体験できる教材になる。`,
+        `${hook}は収益化だけでなく、教育コンテンツとして継続できる需給を作る話に見える。`,
+        `${hook}はボードゲーム、解説動画、オンライン体験、Roblox展開の順で育てたい。`
+      ];
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    return "";
+  }
+
+  function getCommentInstruction() {
+    const raw = els.promptInput ? els.promptInput.value.trim() : "";
+    return raw || defaultPromptForTheme(els.themeSelect ? els.themeSelect.value : "all");
+  }
+
+  function readInstructionMode(instruction) {
+    const text = `${instruction} ${els.themeSelect ? els.themeSelect.value : ""}`.toLowerCase();
+    const mode = {
+      primary: "listen",
+      listen: /傾聴|安心|尊重|受け止め|listen/.test(text),
+      spoilerSafe: /ネタバレ|spoiler/.test(text),
+      short: /短く|テンポ|邪魔をしない|short/.test(text),
+      question: /問い|質問|question/.test(text),
+      hype: /盛り上げ|熱|hype/.test(text)
+    };
+    if (/game|ゲーム|攻略|プレイ/.test(text)) mode.primary = "game";
+    else if (/movie|映画|映像|演出|脚本|ネタバレ/.test(text)) mode.primary = "movie";
+    else if (/book|本紹介|読書|読後感|章立て|要点/.test(text)) mode.primary = "book";
+    else if (mode.question) mode.primary = "question";
+    else if (mode.hype) mode.primary = "hype";
+    else mode.primary = "listen";
+    return mode;
+  }
+
+  function defaultPromptForTheme(theme) {
+    return {
+      all: "オール・ドメディア用。話し手の流れを邪魔せず、安心感とライブ感を両立する。短く反応し、必要な時だけ補足する。",
+      book: "本紹介用。読者の安心感を最優先する。ネタバレではなく、読みたくなる余白を残す。コメントは傾聴、章立て、要点整理、読後感を中心にする。断定しすぎず、話し手の解釈を尊重する。",
+      movie: "映画紹介用。ネタバレを避ける。映像、演出、脚本、感情の動きを拾う。視聴意欲を削らず、見どころを短く反応する。言いすぎそうな時は軽く止める。",
+      game: "ゲーム実況用。プレイ中の邪魔をしない。短くテンポよく反応する。攻略ヒントは控えめにし、初見の驚き、操作のうまさ、探索したくなるポイントを拾う。盛り上げるが過剰に騒がない。",
+      talk: "雑談用。話し手の気分と空気を優先する。結論よりも相づち、共感、問い返しを中心にする。",
+      study: "解説用。難しい話を急に要約しすぎず、補足、確認、別角度の問いを中心にする。"
+    }[theme] || "話し手の流れを邪魔せず、安心感のあるコメントを返す。";
+  }
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function themeLabel(value) {
+    return {
+      all: "全部",
+      book: "本紹介",
+      movie: "映画紹介",
+      game: "ゲーム実況",
+      talk: "雑談",
+      study: "解説"
+    }[value] || value;
+  }
+
+  function themeKicker(value) {
+    return {
+      all: "SOLO RECORDING",
+      book: "BOOK REVIEW",
+      movie: "MOVIE REVIEW",
+      game: "GAME PLAY",
+      talk: "FREE TALK",
+      study: "COMMENTARY"
+    }[value] || "SOLO RECORDING";
+  }
+
+  function styleLabel(value) {
+    return {
+      mixed: "自動",
+      listen: "傾聴",
+      supplement: "補足",
+      question: "問い返し",
+      light: "軽い反応",
+      hype: "盛り上げ"
+    }[value] || value;
+  }
+
+  function designAccent(value) {
+    return {
+      allmedia: "#60b7ff",
+      book: "#f2c14e",
+      movie: "#ff6b7a",
+      game: "#57d68d"
+    }[value] || "#60b7ff";
+  }
+})();
+</script>
+</body>
+</html>

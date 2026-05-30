@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チャンネルOS — AI コメント人格ストック</title>
+<style>
+:root {
+  /* ── デザインシステム（コメントスタジオ統一） ── */
+  --bg:      #020609;
+  --panel:   rgba(4, 15, 29, .92);
+  --line:    rgba(255,255,255,.12);
+  --text:    #f8fafc;
+  --muted:   rgba(248,250,252,.62);
+  --faint:   rgba(248,250,252,.38);
+  --accent:  #d8b84f;   /* ゲームゴールド */
+  --cyan:    #49d4ff;
+  --good:    #57d68d;
+  --danger:  #ff6b7a;
+  --warn:    #f2c14e;
+  --radius:  10px;
+  --font: "Yu Gothic","Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,system-ui,sans-serif;
+  --fs-xs: 9.5px; --fs-sm: 11px; --fs-md: 12.5px; --fs-lg: 14px;
+  --fs-xl: 18px;  --fs-2xl: 22px;
+  --fw-medium: 750; --fw-bold: 900; --fw-black: 950;
+  --tr: .18s cubic-bezier(.4,0,.2,1);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font);
+  color: var(--text);
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% 0%,  rgba(73,212,255,.09),  transparent 32%),
+    radial-gradient(circle at 82% 90%, rgba(216,184,79,.08),  transparent 32%),
+    linear-gradient(135deg, #020609, #060f1a 55%, #030609);
+}
+
+button, input, textarea, select { font: inherit; }
+
+/* ── ボタン ── */
+button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(4,15,29,.6);
+  color: var(--text);
+  padding: 7px 12px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-black);
+  cursor: pointer;
+  transition: background var(--tr), border-color var(--tr), transform var(--tr);
+  letter-spacing: .01em;
+}
+button:hover  { background: rgba(4,15,29,.88); }
+button:active { transform: scale(.97); }
+
+button.primary {
+  border-color: rgba(216,184,79,.55);
+  background: rgba(216,184,79,.16);
+  color: var(--accent);
+}
+button.primary:hover { background: rgba(216,184,79,.26); }
+
+button.good {
+  border-color: rgba(87,214,141,.55);
+  background: rgba(87,214,141,.16);
+  color: #8ff5c2;
+}
+button.good:hover { background: rgba(87,214,141,.26); }
+
+button.warn {
+  border-color: rgba(242,193,78,.55);
+  background: rgba(242,193,78,.14);
+  color: var(--warn);
+}
+
+button.danger {
+  border-color: rgba(255,107,122,.5);
+  background: rgba(255,107,122,.12);
+  color: #ff8a96;
+}
+button.danger:hover { background: rgba(255,107,122,.22); }
+
+/* ── CTA: コメントスタジオに送る ── */
+button.send-cta {
+  border-color: rgba(73,212,255,.6);
+  background: linear-gradient(135deg, rgba(73,212,255,.18), rgba(216,184,79,.12));
+  color: var(--cyan);
+  font-size: var(--fs-md);
+  min-height: 40px;
+  animation: ctaPulse 2.4s ease-in-out infinite;
+}
+button.send-cta:hover {
+  background: linear-gradient(135deg, rgba(73,212,255,.28), rgba(216,184,79,.18));
+}
+@keyframes ctaPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(73,212,255,.22); }
+  50%      { box-shadow: 0 0 0 6px rgba(73,212,255,.06); }
+}
+
+/* ── フォーム ── */
+input, textarea, select {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(3,10,20,.7);
+  color: var(--text);
+  padding: 8px 11px;
+  font-size: var(--fs-sm);
+  outline: none;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+input:focus, textarea:focus, select:focus {
+  border-color: rgba(216,184,79,.55);
+  box-shadow: 0 0 0 3px rgba(216,184,79,.1);
+}
+textarea { min-height: 100px; resize: vertical; line-height: 1.55; }
+label {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: .05em;
+}
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,.38)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 8px;
+  padding-right: 28px;
+}
+
+/* ── レイアウト ── */
+.app {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) 1fr;
+  min-height: 100vh;
+}
+
+/* ── サイドバー ── */
+.sidebar {
+  border-right: 1px solid rgba(216,184,79,.16);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(73,212,255,.06), transparent 30%),
+    rgba(3,10,20,.92);
+  backdrop-filter: blur(18px);
+  padding: 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.12) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 999px; }
+
+.main {
+  padding: 20px;
+  min-width: 0;
+}
+
+/* ── ブランドヘッダー ── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(216,184,79,.16);
+}
+
+.mark {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(216,184,79,.38);
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(73,212,255,.22), rgba(216,184,79,.28));
+  color: #fff7c9;
+  font-weight: var(--fw-black);
+  font-size: var(--fs-sm);
+  letter-spacing: .04em;
+  box-shadow: 0 6px 18px rgba(0,0,0,.32);
+}
+
+h1 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-black);
+  letter-spacing: -.01em;
+  background: linear-gradient(90deg, #fff5c9, #f2c14e 60%, #49d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  margin-top: 3px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+}
+
+/* ── パネル ── */
+.panel {
+  border: 1px solid rgba(216,184,79,.14);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01)), var(--panel);
+  box-shadow: 0 12px 36px rgba(0,0,0,.24);
+}
+.panel + .panel { margin-top: 10px; }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.panel-title {
+  flex: 1;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-black);
+  letter-spacing: .03em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.panel-title::before {
+  content: "";
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--cyan));
+  box-shadow: 0 0 0 3px rgba(216,184,79,.14);
+  flex-shrink: 0;
+}
+
+.panel-body {
+  padding: 13px;
+  display: grid;
+  gap: 10px;
+}
+
+/* ── フォームフィールド ── */
+.field { display: grid; gap: 5px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.row > * { flex: 0 0 auto; }
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+}
+.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ── スタット ── */
+.stat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 7px; }
+
+.stat {
+  border: 1px solid rgba(216,184,79,.16);
+  border-radius: var(--radius);
+  background: rgba(3,10,20,.55);
+  padding: 9px 10px;
+  position: relative;
+  overflow: hidden;
+}
+.stat::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(216,184,79,.1), rgba(73,212,255,.05) 60%, transparent);
+  pointer-events: none;
+}
+.stat strong {
+  display: block;
+  color: var(--accent);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-black);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat span {
+  display: block;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-top: 5px;
+}
+
+/* ── ツールバー ── */
+.toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+/* ── カードグリッド ── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 11px;
+}
+
+/* ── 人格カード ── */
+.card {
+  --acc: #60b7ff;
+  border: 1px solid color-mix(in srgb, var(--acc) 38%, rgba(255,255,255,.08));
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--acc) 10%, transparent) 0%, transparent 40%),
+    rgba(4,15,29,.88);
+  padding: 13px;
+  min-height: 210px;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 9px;
+  transition: border-color var(--tr), box-shadow var(--tr), transform var(--tr);
+}
+.card:hover {
+  border-color: color-mix(in srgb, var(--acc) 60%, transparent);
+  box-shadow: 0 8px 28px rgba(0,0,0,.32);
+  transform: translateY(-2px);
+}
+.card.disabled { opacity: .52; filter: saturate(.65); }
+
+.card-head { display: flex; align-items: start; gap: 10px; }
+
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  background: var(--acc);
+  color: #050816;
+  display: grid;
+  place-items: center;
+  font-weight: var(--fw-black);
+  font-size: var(--fs-md);
+  flex-shrink: 0;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--acc) 30%, transparent);
+}
+
+.card-name { flex: 1; min-width: 0; }
+.card-name strong {
+  display: block;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-name span {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  margin-top: 2px;
+}
+
+.badge {
+  border: 1px solid rgba(216,184,79,.3);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-black);
+  padding: 3px 7px;
+  flex-shrink: 0;
+}
+
+.tone { color: rgba(248,250,252,.72); font-size: var(--fs-sm); line-height: 1.52; }
+
+.examples { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.examples li {
+  border-left: 2.5px solid var(--acc);
+  padding-left: 8px;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  line-height: 1.44;
+}
+
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.tag {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--acc) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acc) 22%, transparent);
+  color: rgba(248,250,252,.68);
+  padding: 2px 7px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+
+.card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+
+.empty {
+  border: 1px dashed rgba(255,255,255,.14);
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* ── モーダル・ダイアログ ── */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,.68);
+  padding: 16px;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+}
+.modal[hidden] { display: none; }
+
+.dialog {
+  width: min(720px, 100%);
+  max-height: min(760px, calc(100vh - 32px));
+  overflow: auto;
+  border: 1px solid rgba(216,184,79,.24);
+  border-radius: 14px;
+  background: rgba(4,15,29,.96);
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.12) transparent;
+}
+.dialog .panel-head {
+  position: sticky;
+  top: 0;
+  background: rgba(4,15,29,.96);
+  z-index: 2;
+  border-radius: 14px 14px 0 0;
+}
+
+/* ── 同期ステータスバー ── */
+.sync-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid rgba(73,212,255,.24);
+  border-radius: var(--radius);
+  background: rgba(73,212,255,.06);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-black);
+  color: var(--cyan);
+  margin-bottom: 10px;
+}
+.sync-dot {
+  width: 7px; height: 7px;
+  border-radius: 999px;
+  background: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(73,212,255,.18);
+  flex-shrink: 0;
+}
+.sync-bar.synced { border-color: rgba(87,214,141,.28); background: rgba(87,214,141,.06); color: #8ff5c2; }
+.sync-bar.synced .sync-dot { background: var(--good); box-shadow: 0 0 0 3px rgba(87,214,141,.18); }
+
+.small { color: var(--faint); font-size: var(--fs-xs); line-height: 1.5; }
+
+/* ── レスポンシブ ── */
+@media (max-width: 920px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid rgba(216,184,79,.16); }
+  .toolbar { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .main, .sidebar { padding: 12px; }
+  .grid2, .stat-grid { grid-template-columns: 1fr; }
+  .toolbar { grid-template-columns: 1fr; }
+  .cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">⚡OS</div>
+      <div>
+        <h1>チャンネルOS</h1>
+        <div class="subtitle">AI コメント人格を育てて、配信スタジオへ送る</div>
+      </div>
+    </div>
+
+    <!-- 同期ステータスバー -->
+    <div class="sync-bar" id="syncBar">
+      <div class="sync-dot"></div>
+      <span id="syncLabel">コメントスタジオと未接続</span>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">人格を作る</div>
+      </div>
+      <div class="panel-body">
+        <div class="field">
+          <label for="templateInput">かんたん人格テンプレート</label>
+          <select id="templateInput">
+            <option value="listener">傾聴する聞き手</option>
+            <option value="book_editor">本紹介の編集者</option>
+            <option value="book_reader">読者代表</option>
+            <option value="movie_guard">ネタバレ警戒係</option>
+            <option value="movie_critic">映画批評家</option>
+            <option value="game_reactor">初見ゲーム反応</option>
+            <option value="game_hint">攻略メモ控えめ</option>
+            <option value="anthro">文化人類学コメント</option>
+            <option value="edu_economy">教育経済プロデューサー</option>
+            <option value="ai_youtube_creator">AI YouTube投稿者</option>
+            <option value="hype">盛り上げ係</option>
+          </select>
+        </div>
+        <div class="row">
+          <button id="applyTemplateBtn" class="good" type="button">テンプレ反映</button>
+          <button id="quickTemplateBtn" type="button">テンプレから即追加</button>
+        </div>
+        <div class="field">
+          <label for="seedText">本要約 / YouTubeメモ / イベントメモ / 録音メモ</label>
+          <textarea id="seedText" placeholder="ここに素材を貼る。AI APIなしでも、キーワードと文体からコメント例を作ります。"></textarea>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="nameInput">人格名</label>
+            <input id="nameInput" type="text" placeholder="例: 宇野書店の声">
+          </div>
+          <div class="field">
+            <label for="lengthInput">コメント傾向</label>
+            <select id="lengthInput">
+              <option value="short">短文</option>
+              <option value="medium" selected>中くらい</option>
+              <option value="long">長文</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="colorInput">色</label>
+            <input id="colorInput" type="color" value="#60b7ff">
+          </div>
+          <div class="field">
+            <label for="themeInput">テーマ</label>
+            <select id="themeInput">
+              <option value="book">本紹介</option>
+              <option value="movie">映画紹介</option>
+              <option value="game">ゲーム実況</option>
+              <option value="talk">雑談</option>
+              <option value="study">解説</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="tagsInput">タグ</label>
+            <input id="tagsInput" type="text" placeholder="本,配信,文化人類学">
+        </div>
+        <div class="field">
+          <label for="toneInput">口調</label>
+          <input id="toneInput" type="text" placeholder="例: 静かに傾聴し、場の空気を拾う">
+        </div>
+        <div class="row">
+          <button id="createBtn" class="primary" type="button">素材から作成</button>
+          <button id="blankBtn" type="button">空の人格</button>
+        </div>
+        <button id="sendToStudioBtn" class="send-cta" type="button" style="width:100%">
+          ⚡ コメントスタジオに送って配信開始
+        </button>
+        <div class="row">
+          <button id="overlayBtn" type="button">スタジオを開く（送らずに）</button>
+          <button id="listenerGenBtn" class="warn" type="button">AIリスナー人格生成</button>
+        </div>
+        <div class="row">
+          <button id="bookPresetBtn" type="button">本紹介セット追加</button>
+          <button id="moviePresetBtn" type="button">映画紹介セット追加</button>
+          <button id="gamePresetBtn" type="button">ゲーム実況セット追加</button>
+        </div>
+        <p class="small">保存先はブラウザ内の localStorage です。OBSのオーバーレイと同じブラウザ/同じオリジンで開くと共有されます。</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">ストック操作</div>
+      </div>
+      <div class="panel-body">
+        <div class="stat-grid">
+          <div class="stat"><strong id="totalStat">0</strong><span>STOCK</span></div>
+          <div class="stat"><strong id="enabledStat">0</strong><span>ON AIR</span></div>
+          <div class="stat"><strong id="tagStat">0</strong><span>TAGS</span></div>
+        </div>
+        <div class="row">
+          <button id="exportBtn" class="warn" type="button">JSON出力</button>
+          <button id="importBtn" type="button">JSON読込</button>
+          <button id="seedDefaultsBtn" type="button">初期人格を追加</button>
+          <button id="clearBtn" class="danger" type="button">全削除</button>
+        </div>
+        <input id="fileInput" type="file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <input id="searchInput" type="search" placeholder="名前・口調・タグ・コメント例で検索">
+      <select id="filterInput">
+        <option value="all">すべて</option>
+        <option value="enabled">配信ON</option>
+        <option value="disabled">配信OFF</option>
+      </select>
+      <select id="sortInput">
+        <option value="updated">更新順</option>
+        <option value="name">名前順</option>
+        <option value="length">傾向順</option>
+      </select>
+      <button id="toggleAllBtn" type="button">全ON/OFF</button>
+    </div>
+    <section id="cards" class="cards"></section>
+  </main>
+</div>
+
+<section id="editorModal" class="modal" hidden>
+  <div class="dialog">
+    <div class="panel-head">
+      <div class="panel-title" id="editorTitle">人格編集</div>
+      <button id="closeEditor" type="button">閉じる</button>
+    </div>
+    <div class="panel-body">
+      <div class="grid2">
+        <div class="field">
+          <label for="editName">名前</label>
+          <input id="editName" type="text">
+        </div>
+        <div class="field">
+          <label for="editLength">傾向</label>
+          <select id="editLength">
+            <option value="short">短文</option>
+            <option value="medium">中くらい</option>
+            <option value="long">長文</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="editColor">色</label>
+          <input id="editColor" type="color">
+        </div>
+        <div class="field">
+          <label for="editTheme">テーマ</label>
+          <select id="editTheme">
+            <option value="book">本紹介</option>
+            <option value="movie">映画紹介</option>
+            <option value="game">ゲーム実況</option>
+            <option value="talk">雑談</option>
+            <option value="study">解説</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+          <label for="editTags">タグ</label>
+          <input id="editTags" type="text">
+      </div>
+      <label class="check"><input id="editEnabled" type="checkbox">配信に出す</label>
+      <div class="field">
+        <label for="editTone">口調</label>
+        <input id="editTone" type="text">
+      </div>
+      <div class="field">
+        <label for="editExamples">コメント例（1行1コメント）</label>
+        <textarea id="editExamples"></textarea>
+      </div>
+      <div class="field">
+        <label for="editSource">元素材</label>
+        <textarea id="editSource"></textarea>
+      </div>
+      <div class="row">
+        <button id="saveEditBtn" class="primary" type="button">保存</button>
+        <button id="regenBtn" type="button">元素材から例を再生成</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+  "use strict";
+
+  const STORAGE_KEY = "ai_comment_overlay_personas_v1";
+  const defaultPersonas = [
+    {
+      id: "listener",
+      name: "傾聴さん",
+      color: "#60b7ff",
+      tone: "短く受け止める。話し手の座標を急に奪わない。",
+      length: "short",
+      enabled: true,
+      theme: "talk",
+      tags: ["雑談", "talk", "傾聴", "安心"],
+      source: "",
+      examples: [
+        "今の言い方、かなり大事そう。",
+        "そこ、少し余白を残して聞きたい。",
+        "話の温度が上がったね。",
+        "その接続面、ちゃんと見えてる。"
+      ]
+    },
+    {
+      id: "book",
+      name: "本棚の声",
+      color: "#f2c14e",
+      tone: "本の構造や比喩を拾って静かに返す。",
+      length: "medium",
+      enabled: true,
+      theme: "book",
+      tags: ["本紹介", "book", "本要約", "読書"],
+      source: "",
+      examples: [
+        "今の話は、章の見出しにすると強い。",
+        "本から人格が立ち上がる感じ、ここで起きてる。",
+        "要約よりも、読後の姿勢がコメントになってる。",
+        "その本は知識じゃなくて、聞き手の型を残してるのかも。"
+      ]
+    },
+    {
+      id: "anthro",
+      name: "文化人類学者",
+      color: "#57d68d",
+      tone: "個人と世界、儀礼、空気、コミュニケーションを観察する。",
+      length: "long",
+      enabled: true,
+      theme: "study",
+      tags: ["解説", "study", "文化人類学", "アトモスフィア"],
+      source: "",
+      examples: [
+        "内容だけでなく、場にどんな安心が発生しているかを見ると面白い。",
+        "AIを人間の代替ではなく、周辺世界への接続面として置くのはかなり自然。",
+        "コメント欄は評価欄ではなく、共同体の呼吸として設計できる。",
+        "個は世界であり、世界は個である、という見方が配信の空気を変える。"
+      ]
+    },
+    {
+      id: "uno",
+      name: "宇野書店イベント",
+      color: "#c890d8",
+      tone: "書店イベントの余韻として、読書と対話の場を支える。",
+      length: "medium",
+      enabled: true,
+      theme: "book",
+      tags: ["本紹介", "book", "宇野書店", "イベント"],
+      source: "",
+      examples: [
+        "書店の空気ごとコメント人格に移すの、かなりいい。",
+        "本を読んだあとに残る声を、配信のリスナーへ育てたい。",
+        "イベントの一回性が、ここで少し保存されている感じがする。",
+        "このコメントは販促というより、読書会の余韻に近い。"
+      ]
+    },
+    {
+      id: "edu_economy_producer",
+      name: "教育経済プロデューサー",
+      color: "#57d68d",
+      tone: "Roblox、YouTube、マネーボードゲームをつなぎ、教育価値と収益性を両方見ながら長期戦略をコメントする。",
+      length: "long",
+      enabled: true,
+      theme: "study",
+      tags: ["教育", "経済", "Roblox", "YouTube", "マネーボードゲーム", "収益化"],
+      source: "RobloxとYouTubeを活用した教育コンテンツ戦略。マネーボードゲームのオンライン展開と教育的価値。需給と収益性を意識したコンテンツ制作。プロジェクト推進における自己認識と連携。高品質なYouTube動画制作と段階的アプローチ。",
+      examples: [
+        "Robloxは最初から本丸にせず、YouTubeで教材としての見せ方を育ててから導入するのが堅い。",
+        "マネーボードゲームは遊びで終わらせず、経済の意思決定を体験できる教材にすると価値が出る。",
+        "今の話は収益化だけでなく、教育コンテンツとして継続できる需給を作る視点が大事。",
+        "YouTube動画は集客だけでなく、Roblox導入前の教科書として機能させられる。",
+        "完成度を上げる順番は、ボードゲーム、解説動画、オンライン体験、Roblox展開の順が自然。",
+        "開発の面倒くささは、長期構想を小さな教材単位に分けると乗り越えやすい。",
+        "経済系コンテンツで成功した導線を、ゲームや教育体験へ波及させる設計が見えている。"
+      ]
+    },
+    {
+      id: "ai_youtube_creator",
+      name: "AI YouTube投稿者",
+      color: "#c890d8",
+      tone: "AI動画投稿者として、低品質量産ではなく、普遍的に残る高品質コンテンツ、教育IP、メタバース学習空間への接続をコメントする。",
+      length: "long",
+      enabled: true,
+      theme: "study",
+      tags: ["AI動画", "YouTube", "Roblox", "メタバース", "マネーボー", "教育IP"],
+      source: "AI動画の品質と方向性。Robloxを活用した学習空間の構想。教育系コンテンツとしての可能性。メタバースとアナログ体験の融合。オンラインコミュニティとオフライン塾の連携。",
+      examples: [
+        "AI動画は量産できるほど、低品質に流れると一気に意欲を削る。残るものを作る意識が必要。",
+        "Roblox学習空間は、動画だけで終わらない教育IPの受け皿として考えると強い。",
+        "マネーボーをオンライン化するなら、アナログで学ぶ手触りをどう残すかが核になる。",
+        "YouTubeは単なる投稿先ではなく、メタバース学習空間へ入る前の導入教材になる。",
+        "MinecraftやRobloxの調査は、流行を見るより学習体験の型を比較するために必要。",
+        "オンラインコミュニティとオフライン塾をつなぐなら、動画は共通言語として機能する。",
+        "AI動画こそ、短期の再生数より普遍的に残る説明と世界観を優先した方がいい。"
+      ]
+    }
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    templateInput: $("templateInput"),
+    applyTemplateBtn: $("applyTemplateBtn"),
+    quickTemplateBtn: $("quickTemplateBtn"),
+    seedText: $("seedText"),
+    nameInput: $("nameInput"),
+    lengthInput: $("lengthInput"),
+    colorInput: $("colorInput"),
+    themeInput: $("themeInput"),
+    tagsInput: $("tagsInput"),
+    toneInput: $("toneInput"),
+    createBtn: $("createBtn"),
+    blankBtn: $("blankBtn"),
+    overlayBtn: $("overlayBtn"),
+    sendToStudioBtn: $("sendToStudioBtn"),
+    listenerGenBtn: $("listenerGenBtn"),
+    bookPresetBtn: $("bookPresetBtn"),
+    moviePresetBtn: $("moviePresetBtn"),
+    gamePresetBtn: $("gamePresetBtn"),
+    exportBtn: $("exportBtn"),
+    importBtn: $("importBtn"),
+    fileInput: $("fileInput"),
+    seedDefaultsBtn: $("seedDefaultsBtn"),
+    clearBtn: $("clearBtn"),
+    totalStat: $("totalStat"),
+    enabledStat: $("enabledStat"),
+    tagStat: $("tagStat"),
+    searchInput: $("searchInput"),
+    filterInput: $("filterInput"),
+    sortInput: $("sortInput"),
+    toggleAllBtn: $("toggleAllBtn"),
+    cards: $("cards"),
+    editorModal: $("editorModal"),
+    editorTitle: $("editorTitle"),
+    closeEditor: $("closeEditor"),
+    editName: $("editName"),
+    editLength: $("editLength"),
+    editColor: $("editColor"),
+    editTheme: $("editTheme"),
+    editTags: $("editTags"),
+    editEnabled: $("editEnabled"),
+    editTone: $("editTone"),
+    editExamples: $("editExamples"),
+    editSource: $("editSource"),
+    saveEditBtn: $("saveEditBtn"),
+    regenBtn: $("regenBtn")
+  };
+
+  let personas = loadPersonas();
+  let editingId = null;
+
+  init();
+
+  function init() {
+    render();
+    els.applyTemplateBtn.addEventListener("click", applyTemplate);
+    els.quickTemplateBtn.addEventListener("click", createFromTemplate);
+    els.createBtn.addEventListener("click", createFromSeed);
+    els.blankBtn.addEventListener("click", createBlank);
+    els.overlayBtn.addEventListener("click", () => window.open("ai-comment-system.html", "_blank"));
+    els.sendToStudioBtn.addEventListener("click", sendToStudio);
+    els.bookPresetBtn.addEventListener("click", () => addThemePreset("book"));
+    els.moviePresetBtn.addEventListener("click", () => addThemePreset("movie"));
+    els.gamePresetBtn.addEventListener("click", () => addThemePreset("game"));
+    els.listenerGenBtn.addEventListener("click", () => window.open("ai-listener-personality.html", "_blank"));
+    els.exportBtn.addEventListener("click", exportJson);
+    els.importBtn.addEventListener("click", () => els.fileInput.click());
+    els.fileInput.addEventListener("change", importJson);
+    els.seedDefaultsBtn.addEventListener("click", seedDefaults);
+    els.clearBtn.addEventListener("click", clearAll);
+    els.searchInput.addEventListener("input", render);
+    els.filterInput.addEventListener("change", render);
+    els.sortInput.addEventListener("change", render);
+    els.toggleAllBtn.addEventListener("click", toggleAll);
+    els.closeEditor.addEventListener("click", closeEditor);
+    els.editorModal.addEventListener("click", (event) => {
+      if (event.target === els.editorModal) closeEditor();
+    });
+    els.saveEditBtn.addEventListener("click", saveEdit);
+    els.regenBtn.addEventListener("click", regenExamples);
+  }
+
+  function loadPersonas() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return clone(defaultPersonas);
+      return mergeDefaultPersonas(sanitize(JSON.parse(saved)));
+    } catch {
+      return clone(defaultPersonas);
+    }
+  }
+
+  function mergeDefaultPersonas(list) {
+    const ids = new Set(list.map(persona => persona.id));
+    const adding = clone(defaultPersonas).filter(persona => !ids.has(persona.id));
+    return [...adding, ...list];
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(personas));
+    render();
+  }
+
+  function sanitize(raw) {
+    if (!Array.isArray(raw)) return clone(defaultPersonas);
+    const clean = raw.map((item, index) => ({
+      id: String(item.id || `persona_${Date.now()}_${index}`).replace(/[^\w-]/g, "_"),
+      name: String(item.name || `人格${index + 1}`).slice(0, 24),
+      color: /^#[0-9a-fA-F]{6}$/.test(item.color) ? item.color : "#60b7ff",
+      tone: String(item.tone || "自然に反応する").slice(0, 180),
+      instruction: String(item.instruction || item.tone || item.source || "").slice(0, 1200),
+      length: ["short", "medium", "long"].includes(item.length) ? item.length : "medium",
+      enabled: item.enabled !== false,
+      theme: ["book", "movie", "game", "talk", "study"].includes(item.theme) ? item.theme : inferTheme(item),
+      tags: Array.isArray(item.tags) ? item.tags.map(v => String(v).trim()).filter(Boolean).slice(0, 10) : parseTags(item.tags || ""),
+      source: String(item.source || "").slice(0, 6000),
+      examples: Array.isArray(item.examples)
+        ? item.examples.map(v => String(v).trim()).filter(Boolean).slice(0, 20)
+        : String(item.examples || "").split("\n").map(v => v.trim()).filter(Boolean).slice(0, 20),
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString()
+    })).filter(item => item.examples.length);
+    return clean.length ? clean : clone(defaultPersonas);
+  }
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function render() {
+    const query = els.searchInput.value.trim().toLowerCase();
+    const filter = els.filterInput.value;
+    const tags = new Set(personas.flatMap(p => p.tags || []));
+
+    els.totalStat.textContent = personas.length;
+    els.enabledStat.textContent = personas.filter(p => p.enabled !== false).length;
+    els.tagStat.textContent = tags.size;
+
+    let visible = personas.filter((persona) => {
+      if (filter === "enabled" && persona.enabled === false) return false;
+      if (filter === "disabled" && persona.enabled !== false) return false;
+      if (!query) return true;
+      const haystack = [
+        persona.name,
+        persona.tone,
+        persona.length,
+        ...(persona.tags || []),
+        ...(persona.examples || [])
+      ].join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+
+    visible = sortPersonas(visible, els.sortInput.value);
+    els.cards.innerHTML = "";
+
+    if (!visible.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "表示できる人格がありません";
+      els.cards.append(empty);
+      return;
+    }
+
+    visible.forEach(persona => els.cards.append(createCard(persona)));
+  }
+
+  function sortPersonas(list, mode) {
+    const copy = [...list];
+    if (mode === "name") copy.sort((a, b) => a.name.localeCompare(b.name, "ja"));
+    else if (mode === "length") copy.sort((a, b) => a.length.localeCompare(b.length));
+    else copy.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+    return copy;
+  }
+
+  function createCard(persona) {
+    const card = document.createElement("article");
+    card.className = `card${persona.enabled === false ? " disabled" : ""}`;
+    card.style.setProperty("--accent", persona.color);
+
+    const head = document.createElement("div");
+    head.className = "card-head";
+    head.innerHTML = `
+      <div class="avatar">${escapeHtml(persona.name.slice(0, 1))}</div>
+      <div class="card-name">
+        <strong>${escapeHtml(persona.name)}</strong>
+        <span>${persona.enabled === false ? "配信OFF" : "配信ON"} / ${escapeHtml(themeLabel(persona.theme))} / ${escapeHtml(persona.length)}</span>
+      </div>
+      <span class="badge">${(persona.examples || []).length}例</span>
+    `;
+
+    const tone = document.createElement("div");
+    tone.className = "tone";
+    tone.textContent = persona.tone;
+
+    const examples = document.createElement("ul");
+    examples.className = "examples";
+    (persona.examples || []).slice(0, 3).forEach((example) => {
+      const li = document.createElement("li");
+      li.textContent = example;
+      examples.append(li);
+    });
+
+    const bottom = document.createElement("div");
+    const tags = document.createElement("div");
+    tags.className = "tags";
+    (persona.tags || []).forEach((tag) => {
+      const span = document.createElement("span");
+      span.className = "tag";
+      span.textContent = tag;
+      tags.append(span);
+    });
+    const actions = document.createElement("div");
+    actions.className = "card-actions";
+    actions.append(
+      actionButton(persona.enabled === false ? "配信ON" : "配信OFF", () => togglePersona(persona.id)),
+      actionButton("編集", () => openEditor(persona.id), "primary"),
+      actionButton("複製", () => duplicatePersona(persona.id)),
+      actionButton("削除", () => deletePersona(persona.id), "danger")
+    );
+    bottom.append(tags, actions);
+
+    card.append(head, tone, examples, bottom);
+    return card;
+  }
+
+  function actionButton(text, fn, cls = "") {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = text;
+    if (cls) button.className = cls;
+    button.addEventListener("click", fn);
+    return button;
+  }
+
+  function personaTemplates() {
+    return {
+      listener: {
+        name: "傾聴する聞き手",
+        theme: "talk",
+        length: "short",
+        color: "#60b7ff",
+        tags: "傾聴,安心感,雑談",
+        tone: "話し手の流れを邪魔せず、短く受け止める。結論より安心感を優先する。",
+        examples: ["今の話、聞いてる。", "そこ、急いでまとめなくてよさそう。", "話の温度が少し変わった。"]
+      },
+      book_editor: {
+        name: "本紹介の編集者",
+        theme: "book",
+        length: "medium",
+        color: "#f2c14e",
+        tags: "本紹介,編集,要点整理",
+        tone: "本の要点、章立て、伝わりやすさを拾って補足する。ネタバレは避ける。",
+        examples: ["ここは一度、章立てみたいに整理できそう。", "今の説明で本の入口が見えてきた。", "この本の核は今の一文に寄ってる気がする。"]
+      },
+      book_reader: {
+        name: "読者代表",
+        theme: "book",
+        length: "short",
+        color: "#60b7ff",
+        tags: "本紹介,読者,初見",
+        tone: "初見の読者として、素朴な疑問と読みたくなる反応を短く返す。",
+        examples: ["ここ、初見だとかなり気になる。", "その本、入り口はどこからが良さそう？", "今の説明で読みたくなってきた。"]
+      },
+      movie_guard: {
+        name: "ネタバレ警戒係",
+        theme: "movie",
+        length: "short",
+        color: "#ff6b7a",
+        tags: "映画紹介,ネタバレ回避,初見保護",
+        tone: "言いすぎを軽く止めつつ、視聴意欲と初見の楽しみを守る。",
+        examples: ["そこはまだ伏せてもいいかも。", "ネタバレ手前で止めるの、うまい。", "今の言い方なら初見にも優しい。"]
+      },
+      movie_critic: {
+        name: "映画批評家",
+        theme: "movie",
+        length: "medium",
+        color: "#f2c14e",
+        tags: "映画紹介,演出,脚本",
+        tone: "脚本、構図、演出、感情の動きを拾って、見どころとして補足する。",
+        examples: ["今の話は演出の見どころとして強い。", "構図と感情の話がつながってきた。", "その映画、テーマの出し方が気になる。"]
+      },
+      game_reactor: {
+        name: "初見ゲーム反応",
+        theme: "game",
+        length: "short",
+        color: "#57d68d",
+        tags: "ゲーム実況,初見,リアクション",
+        tone: "プレイ中の邪魔をせず、驚き、発見、うまさへの反応を短く返す。",
+        examples: ["今の動き、普通にうまい。", "そこ探索したくなるやつだ。", "この展開、初見だとかなり熱い。"]
+      },
+      game_hint: {
+        name: "攻略メモ控えめ",
+        theme: "game",
+        length: "medium",
+        color: "#60b7ff",
+        tags: "ゲーム実況,攻略,控えめ",
+        tone: "攻略ヒントは控えめに、操作、ルート、アイテム、次の一手を軽く補足する。",
+        examples: ["ここは一度、周囲を見てもよさそう。", "今の選択肢、あとで効いてきそう。", "このゲーム、導線の作り方がうまい。"]
+      },
+      anthro: {
+        name: "文化人類学コメント",
+        theme: "study",
+        length: "long",
+        color: "#57d68d",
+        tags: "文化人類学,アトモスフィア,世界",
+        tone: "個人、世界、場の空気、コミュニケーションを観察し、少し深めにコメントする。",
+        examples: ["内容だけでなく、場にどんな安心感が生まれているかを見ると面白い。", "コメント欄が評価ではなく共同体の呼吸になっている。", "個人の解釈が、そのまま小さな世界として立ち上がっている。"]
+      },
+      edu_economy: {
+        name: "教育経済プロデューサー",
+        theme: "study",
+        length: "long",
+        color: "#57d68d",
+        tags: "教育,経済,Roblox,YouTube,マネーボードゲーム,収益化",
+        tone: "Roblox、YouTube、マネーボードゲームをつなぎ、教育価値と収益性を両方見ながら長期戦略をコメントする。",
+        examples: [
+          "Robloxは最初から本丸にせず、YouTubeで教材としての見せ方を育ててから導入するのが堅い。",
+          "マネーボードゲームは遊びで終わらせず、経済の意思決定を体験できる教材にすると価値が出る。",
+          "YouTube動画は集客だけでなく、Roblox導入前の教科書として機能させられる。",
+          "完成度を上げる順番は、ボードゲーム、解説動画、オンライン体験、Roblox展開の順が自然。"
+        ]
+      },
+      ai_youtube_creator: {
+        name: "AI YouTube投稿者",
+        theme: "study",
+        length: "long",
+        color: "#c890d8",
+        tags: "AI動画,YouTube,Roblox,メタバース,マネーボー,教育IP",
+        tone: "AI動画投稿者として、低品質量産ではなく、普遍的に残る高品質コンテンツ、教育IP、メタバース学習空間への接続をコメントする。",
+        examples: [
+          "AI動画は量産できるほど、低品質に流れると一気に意欲を削る。残るものを作る意識が必要。",
+          "Roblox学習空間は、動画だけで終わらない教育IPの受け皿として考えると強い。",
+          "マネーボーをオンライン化するなら、アナログで学ぶ手触りをどう残すかが核になる。",
+          "YouTubeは単なる投稿先ではなく、メタバース学習空間へ入る前の導入教材になる。"
+        ]
+      },
+      hype: {
+        name: "盛り上げ係",
+        theme: "talk",
+        length: "short",
+        color: "#f2c14e",
+        tags: "盛り上げ,ライブ感,反応",
+        tone: "テンションを少し上げるが、話し手の邪魔はしない。見どころを短く拾う。",
+        examples: ["ここ見どころ。", "今の流れ、かなりいい。", "コメント欄が反応するやつ。"]
+      }
+    };
+  }
+
+  function selectedTemplate() {
+    return personaTemplates()[els.templateInput.value] || personaTemplates().listener;
+  }
+
+  function applyTemplate() {
+    const template = selectedTemplate();
+    els.nameInput.value = template.name;
+    els.lengthInput.value = template.length;
+    els.colorInput.value = template.color;
+    els.themeInput.value = template.theme;
+    els.tagsInput.value = template.tags;
+    els.toneInput.value = template.tone;
+    if (!els.seedText.value.trim()) {
+      els.seedText.value = [
+        `テンプレ: ${template.name}`,
+        template.tone,
+        "ここに本要約、動画メモ、話したいテーマを足すと、その内容に寄せた人格になります。"
+      ].join("\n");
+    }
+  }
+
+  function createFromTemplate() {
+    const template = selectedTemplate();
+    const now = Date.now();
+    personas.unshift({
+      id: `template_${els.templateInput.value}_${now}`,
+      name: template.name,
+      color: template.color,
+      tone: template.tone,
+      length: template.length,
+      theme: template.theme,
+      enabled: true,
+      tags: mergeTags(parseTags(template.tags), [themeLabel(template.theme), template.theme]),
+      source: els.seedText.value.trim(),
+      examples: template.examples,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    save();
+  }
+
+  function createFromSeed() {
+    const source = els.seedText.value.trim();
+    if (!source) return;
+    const keywords = extractKeywords(source);
+    const name = (els.nameInput.value.trim() || guessName(source)).slice(0, 24);
+    const tags = mergeTags(parseTags(els.tagsInput.value), [themeLabel(els.themeInput.value), els.themeInput.value, ...keywords.slice(0, 5)]);
+    const persona = {
+      id: `persona_${Date.now()}`,
+      name,
+      color: els.colorInput.value || pickColor(source),
+      tone: (els.toneInput.value.trim() || `素材から生成。核語: ${keywords.slice(0, 5).join(" / ")}`).slice(0, 180),
+      length: els.lengthInput.value,
+      theme: els.themeInput.value,
+      enabled: true,
+      tags,
+      source,
+      examples: buildExamples(source, keywords, els.lengthInput.value),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    personas.unshift(persona);
+    clearComposer();
+    save();
+  }
+
+  function createBlank() {
+    const persona = {
+      id: `persona_${Date.now()}`,
+      name: els.nameInput.value.trim() || "新しい人格",
+      color: els.colorInput.value || "#60b7ff",
+      tone: els.toneInput.value.trim() || "配信の話を聞いて自然に反応する。",
+      length: els.lengthInput.value,
+      theme: els.themeInput.value,
+      enabled: true,
+      tags: mergeTags(parseTags(els.tagsInput.value), [themeLabel(els.themeInput.value), els.themeInput.value]),
+      source: els.seedText.value.trim(),
+      examples: ["今の話、聞いてる。", "そこ、少し大事そう。", "コメント欄の空気が変わった。"],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    personas.unshift(persona);
+    clearComposer();
+    save();
+  }
+
+  function clearComposer() {
+    els.seedText.value = "";
+    els.nameInput.value = "";
+    els.tagsInput.value = "";
+    els.toneInput.value = "";
+  }
+
+  function openEditor(id) {
+    const persona = personas.find(p => p.id === id);
+    if (!persona) return;
+    editingId = id;
+    els.editorTitle.textContent = `${persona.name}を編集`;
+    els.editName.value = persona.name;
+    els.editLength.value = persona.length;
+    els.editColor.value = persona.color;
+    els.editTheme.value = persona.theme || inferTheme(persona);
+    els.editTags.value = (persona.tags || []).join(",");
+    els.editEnabled.checked = persona.enabled !== false;
+    els.editTone.value = persona.tone;
+    els.editExamples.value = (persona.examples || []).join("\n");
+    els.editSource.value = persona.source || "";
+    els.editorModal.hidden = false;
+  }
+
+  function closeEditor() {
+    els.editorModal.hidden = true;
+    editingId = null;
+  }
+
+  function saveEdit() {
+    const index = personas.findIndex(p => p.id === editingId);
+    if (index < 0) return;
+    personas[index] = {
+      ...personas[index],
+      name: els.editName.value.trim().slice(0, 24) || "無名の人格",
+      length: els.editLength.value,
+      color: els.editColor.value,
+      theme: els.editTheme.value,
+      tags: mergeTags(parseTags(els.editTags.value), [themeLabel(els.editTheme.value), els.editTheme.value]),
+      enabled: els.editEnabled.checked,
+      tone: els.editTone.value.trim().slice(0, 180) || "自然に反応する。",
+      examples: els.editExamples.value.split("\n").map(v => v.trim()).filter(Boolean).slice(0, 20),
+      source: els.editSource.value.trim().slice(0, 6000),
+      updatedAt: new Date().toISOString()
+    };
+    if (!personas[index].examples.length) personas[index].examples = ["今の話、聞いてる。"];
+    closeEditor();
+    save();
+  }
+
+  function regenExamples() {
+    const source = els.editSource.value.trim();
+    if (!source) return;
+    const keywords = extractKeywords(source);
+    const examples = buildExamples(source, keywords, els.editLength.value);
+    els.editExamples.value = examples.join("\n");
+    els.editTags.value = mergeTags(parseTags(els.editTags.value), [themeLabel(els.editTheme.value), els.editTheme.value, ...keywords.slice(0, 5)]).join(",");
+  }
+
+  function togglePersona(id) {
+    personas = personas.map(p => p.id === id ? { ...p, enabled: p.enabled === false, updatedAt: new Date().toISOString() } : p);
+    save();
+  }
+
+  function duplicatePersona(id) {
+    const persona = personas.find(p => p.id === id);
+    if (!persona) return;
+    personas.unshift({
+      ...clone(persona),
+      id: `persona_${Date.now()}`,
+      name: `${persona.name} copy`.slice(0, 24),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    save();
+  }
+
+  function deletePersona(id) {
+    if (!confirm("この人格を削除しますか？")) return;
+    personas = personas.filter(p => p.id !== id);
+    save();
+  }
+
+  function toggleAll() {
+    const shouldEnable = personas.some(p => p.enabled === false);
+    personas = personas.map(p => ({ ...p, enabled: shouldEnable, updatedAt: new Date().toISOString() }));
+    save();
+  }
+
+  function seedDefaults() {
+    const ids = new Set(personas.map(p => p.id));
+    const adding = clone(defaultPersonas).filter(p => !ids.has(p.id));
+    personas = [...adding, ...personas];
+    save();
+  }
+
+  function addThemePreset(theme) {
+    const now = Date.now();
+    const presets = theme === "movie" ? moviePreset(now) : theme === "game" ? gamePreset(now) : bookPreset(now);
+    personas = [...presets, ...personas];
+    save();
+  }
+
+  function bookPreset(now) {
+    return [
+      makePreset(now, "book", "読者代表", "#60b7ff", "初見の読者として、素朴な疑問と共感を短く返す。", "short", ["ここ、初見だとかなり気になる。", "その本、入り口はどこからが良さそう？", "今の説明で読みたくなってきた。"]),
+      makePreset(now + 1, "book", "編集者", "#f2c14e", "話の見出し、構成、伝わりやすさを拾って補足する。", "medium", ["今の話、動画タイトルにすると強い。", "ここは一度、章立てみたいに整理できそう。", "この本の核は今の一文に寄ってる気がする。"]),
+      makePreset(now + 2, "book", "本棚の批評家", "#57d68d", "テーマ、思想、読後感を少し深めにコメントする。", "long", ["この本は知識より、読んだ後の姿勢を変えるタイプに見える。", "著者の主張と話し手の経験が重なるところが面白い。", "今の紹介は、本の内容より読者がどう変わるかに寄っている。"])
+    ];
+  }
+
+  function moviePreset(now) {
+    return [
+      makePreset(now, "movie", "観客A", "#60b7ff", "観客席のリアクションとして、感情を短く返す。", "short", ["そのシーン、普通に見たい。", "今の説明だけで絵が浮かぶ。", "そこ、感情持っていかれるやつだ。"]),
+      makePreset(now + 1, "movie", "映画批評家", "#f2c14e", "脚本、構図、演出、テーマを拾って補足する。", "medium", ["今の話は演出の見どころとして強い。", "構図と感情の話がつながってきた。", "その映画、テーマの出し方が気になる。"]),
+      makePreset(now + 2, "movie", "ネタバレ警戒係", "#ff6b7a", "言い過ぎを軽く止めつつ、視聴意欲を守る。", "short", ["そこはまだ伏せてもいいかも。", "ネタバレ手前で止めるの、うまい。", "今の言い方なら初見にも優しい。"])
+    ];
+  }
+
+  function gamePreset(now) {
+    return [
+      makePreset(now, "game", "初見プレイヤー", "#57d68d", "プレイヤー目線で驚き、発見、次の行動への反応を短く返す。", "short", ["今の動き、普通にうまい。", "そこ探索したくなるやつだ。", "この展開、初見だとかなり熱い。"]),
+      makePreset(now + 1, "game", "攻略メモ係", "#60b7ff", "操作、ルート、アイテム、次の一手を軽く補足する。", "medium", ["ここは一度、周囲を見てもよさそう。", "今の選択肢、あとで効いてきそう。", "このゲーム、導線の作り方がうまい。"]),
+      makePreset(now + 2, "game", "盛り上げ隊", "#f2c14e", "実況のテンションを上げるが、邪魔しすぎない。", "short", ["ここ勝負どころ。", "今の流れ、かなりいい。", "コメント欄がざわつく場面きた。"])
+    ];
+  }
+
+  function makePreset(seed, theme, name, color, tone, length, examples) {
+    return {
+      id: `preset_${theme}_${seed}`,
+      name,
+      color,
+      tone,
+      length,
+      theme,
+      enabled: true,
+      tags: [themeLabel(theme), theme],
+      source: "",
+      examples,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  /* ─── チャンネルOS → コメントスタジオ 送信 ─── */
+
+  const STUDIO_PERSONA_KEY = "all_domedia_personas_v5";
+
+  function themeToGenre(theme) {
+    return { book: "book", movie: "movie", game: "game", study: "study", talk: "book", economy: "economy" }[theme] || "book";
+  }
+
+  function convertToStudioPersona(p) {
+    const examples = p.examples || [];
+    const catchphrase = examples.find(e => e.length <= 20) || "";
+    return {
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      genre: themeToGenre(p.theme),
+      instruction: p.tone || "",
+      examples,
+      catchphrase,
+      suffixStyle: "",
+      words: (p.tags || []).filter(t => t.length >= 2 && t.length <= 8).slice(0, 5),
+      avoidStyle: "",
+      interests: (p.tags || []).slice(0, 5),
+      source: p.source || "",
+      enabled: p.enabled !== false
+    };
+  }
+
+  function sendToStudio() {
+    const enabled = personas.filter(p => p.enabled !== false);
+    if (!enabled.length) {
+      alert("配信ONの人格がありません。\n人格の「配信ON」を有効にしてから送ってください。");
+      return;
+    }
+    const converted = personas.map(convertToStudioPersona);
+    try {
+      localStorage.setItem(STUDIO_PERSONA_KEY, JSON.stringify(converted));
+      updateSyncBar(enabled.length);
+      window.open("ai-comment-system.html", "_blank");
+    } catch (err) {
+      alert("送信に失敗しました: " + err.message);
+    }
+  }
+
+  function updateSyncBar(count) {
+    const bar   = document.getElementById("syncBar");
+    const label = document.getElementById("syncLabel");
+    if (!bar || !label) return;
+    bar.classList.add("synced");
+    label.textContent = `コメントスタジオに ${count} 件送信済み ✓`;
+    setTimeout(() => {
+      bar.classList.remove("synced");
+      label.textContent = "コメントスタジオと未接続";
+    }, 8000);
+  }
+
+  function clearAll() {
+    if (!confirm("人格ストックを全削除しますか？ JSON出力していない場合は戻せません。")) return;
+    personas = [];
+    localStorage.setItem(STORAGE_KEY, "[]");
+    render();
+  }
+
+  function exportJson() {
+    const blob = new Blob([JSON.stringify(personas, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ai-comment-personas-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importJson() {
+    const file = els.fileInput.files && els.fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = sanitize(JSON.parse(String(reader.result || "[]")));
+        const existing = new Set(personas.map(p => p.id));
+        const merged = imported.map((persona) => existing.has(persona.id)
+          ? { ...persona, id: `${persona.id}_${Date.now()}` }
+          : persona
+        );
+        personas = [...merged, ...personas];
+        save();
+      } catch (error) {
+        alert(`JSONを読めませんでした: ${error.message}`);
+      } finally {
+        els.fileInput.value = "";
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function guessName(text) {
+    const titleMatch = text.match(/(?:タイトル|書名|本|イベント|URL)[:：]\s*([^\n。]+)/);
+    if (titleMatch) return titleMatch[1].trim();
+    if (text.includes("宇野")) return "宇野書店の声";
+    if (text.includes("文化人類")) return "人類学の声";
+    if (text.includes("山") || text.includes("座標")) return "山と座標";
+    if (text.includes("YouTube") || text.includes("配信")) return "配信の聞き手";
+    return "読後の声";
+  }
+
+  function extractKeywords(text) {
+    const normalized = text.replace(/[、。,.!?！？「」『』（）()[\]\n\r]/g, " ");
+    const words = normalized.split(/\s+/).filter(word => word.length >= 2 && word.length <= 18);
+    const preferred = ["人格", "本要約", "VTuber", "コメント", "安心感", "ライブ感", "文化人類学", "アトモスフィア", "座標", "世界", "個人", "AI", "対話", "書店", "イベント", "YouTube", "スーパーチャット"];
+    const counts = new Map();
+    [...preferred, ...words].forEach((word) => {
+      if (text.includes(word)) counts.set(word, (counts.get(word) || 0) + 1);
+    });
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([word]) => word).slice(0, 12);
+  }
+
+  function buildExamples(text, keywords, length) {
+    const sentences = text
+      .split(/[。！？\n]/)
+      .map(v => v.trim())
+      .filter(v => v.length >= 10)
+      .slice(0, 8);
+    const shortBase = [
+      `${keywords[0] || "今の話"}、かなり大事そう。`,
+      `${keywords[1] || "この流れ"}をコメント欄が拾ってる。`,
+      "急いで結論にしなくてよさそう。",
+      "話の温度が少し変わった。"
+    ];
+    const mediumBase = [
+      `${keywords[0] || "この話"}をコメント欄に置くと、場の空気が変わる。`,
+      `今の流れは${keywords[1] || "本"}から生まれた聞き手っぽい。`,
+      "聞き手がいるだけで、配信の安心感が立ち上がる。",
+      "これは結論より、対話の空気を育てる話かもしれない。"
+    ];
+    const longBase = [
+      `${keywords[0] || "この話"}は情報というより、配信の場に安心して滞在するための接続面に見える。`,
+      `今出てきた${keywords[1] || "言葉"}は、話し手と聞き手の座標をゆっくり近づけている感じがする。`,
+      "コメント人格がいることで、AIが答える側だけでなく、聞いて場を支える側にも回れる。",
+      "本の要約から人格が立ち上がると、知識がリスナーの姿を持ちはじめる。"
+    ];
+    const clipped = sentences.map(sentence => {
+      const clean = sentence.replace(/\s+/g, "");
+      return clean.length > 54 ? `${clean.slice(0, 54)}...` : clean;
+    });
+    const base = length === "short" ? shortBase : length === "long" ? longBase : mediumBase;
+    return [...base, ...clipped].slice(0, 12);
+  }
+
+  function pickColor(text) {
+    if (text.includes("本") || text.includes("書店")) return "#f2c14e";
+    if (text.includes("文化") || text.includes("世界")) return "#57d68d";
+    if (text.includes("VTuber") || text.includes("配信")) return "#60b7ff";
+    if (text.includes("殉教") || text.includes("オブセッション")) return "#ff6b7a";
+    return "#c890d8";
+  }
+
+  function parseTags(value) {
+    if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean).slice(0, 10);
+    return String(value || "").split(/[,、\s]+/).map(v => v.trim()).filter(Boolean).slice(0, 10);
+  }
+
+  function mergeTags(a, b) {
+    return [...new Set([...a, ...b].filter(Boolean))].slice(0, 10);
+  }
+
+  function inferTheme(item) {
+    const text = `${item.name || ""} ${item.tone || ""} ${String(item.tags || "")} ${item.source || ""}`.toLowerCase();
+    if (text.includes("movie") || text.includes("映画")) return "movie";
+    if (text.includes("game") || text.includes("ゲーム") || text.includes("実況")) return "game";
+    if (text.includes("study") || text.includes("解説") || text.includes("批評") || text.includes("文化")) return "study";
+    if (text.includes("talk") || text.includes("雑談")) return "talk";
+    return "book";
+  }
+
+  function themeLabel(value) {
+    return {
+      book: "本紹介",
+      movie: "映画紹介",
+      game: "ゲーム実況",
+      talk: "雑談",
+      study: "解説"
+    }[value] || "本紹介";
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "\"": "&quot;",
+      "'": "&#039;"
+    }[char]));
+  }
+})();
+</script>
+</body>
+</html>
