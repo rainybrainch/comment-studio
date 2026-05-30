@@ -1405,9 +1405,30 @@ h1 {
     return { book: "book", movie: "movie", game: "game", study: "study", talk: "book", economy: "economy" }[theme] || "book";
   }
 
+  function inferRoleType(p) {
+    const text = [p.name, p.tone, (p.tags || []).join(" ")].join(" ").toLowerCase();
+    if (/応援|チアー|hype|盛り上げ/.test(text)) return "応援勢";
+    if (/質問|疑問|聞く|how|why/.test(text)) return "質問勢";
+    if (/共感|わかる|受け止め|傾聴|聞き手/.test(text)) return "共感勢";
+    if (/懐疑|批評|批判|critic|慎重/.test(text)) return "懐疑勢";
+    if (/知識|解説|補足|情報|study|anthro/.test(text)) return "知識勢";
+    if (/ネタ|草|ツッコミ|笑|面白|hype/.test(text)) return "ネタ勢";
+    if (/妄想|伏線|可能性|展開|想像/.test(text)) return "妄想勢";
+    if (/初心者|初見|入門|beginner/.test(text)) return "初心者勢";
+    if (/開発|実装|エンジニア|技術|AI|YouTube/.test(text)) return "開発者勢";
+    if (/経済|投資|収益|マネー|期待値/.test(text)) return "投資家勢";
+    // テーマから推定
+    if (p.theme === "game") return "共感勢";
+    if (p.theme === "study") return "知識勢";
+    if (p.theme === "book") return "共感勢";
+    if (p.theme === "movie") return "共感勢";
+    return "共感勢";
+  }
+
   function convertToStudioPersona(p) {
     const examples = p.examples || [];
-    const catchphrase = examples.find(e => e.length <= 20) || "";
+    const catchphrase = examples.find(e => e.length <= 22) || "";
+    const roleType = inferRoleType(p);
     return {
       id: p.id,
       name: p.name,
@@ -1416,6 +1437,7 @@ h1 {
       instruction: p.tone || "",
       examples,
       catchphrase,
+      roleType,              // ← 自動推定
       suffixStyle: "",
       words: (p.tags || []).filter(t => t.length >= 2 && t.length <= 8).slice(0, 5),
       avoidStyle: "",
