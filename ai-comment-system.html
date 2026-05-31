@@ -3442,6 +3442,11 @@ body.theme-game .comment-lane::before {
   }
 
   function init() {
+    // showComment が誤って "0" になっていたら強制リセット
+    if (settings.showComment === "0") {
+      settings.showComment = "1";
+      saveSettings();
+    }
     applyTheme();
     bindBus();
     startClock();
@@ -4488,7 +4493,7 @@ body.theme-game .comment-lane::before {
       text = buildComment(p);
       if (!history.slice(0, 10).some(x => x.text === text)) break;
     }
-    if (blocked(text)) return;
+    if (!text || blocked(text)) return;
     lastCommentAt = Date.now();
     if (!superChat) commentBuffer = "";
     post({ type: "comment", comment: { user: p.name, color: p.color, text, superChat } });
@@ -4956,6 +4961,11 @@ body.theme-game .comment-lane::before {
     ["controlStream","overlayStream"].map($).filter(Boolean).forEach(stream => {
       const n = document.createElement("article");
       n.className = "comment" + (c.superChat ? " super" : "");
+      // CSS 競合を JS レベルでも確実に排除
+      n.style.position = "relative";
+      n.style.bottom   = "auto";
+      n.style.right    = "auto";
+      n.style.width    = "100%";
       n.style.setProperty("--user", c.color || genres[settings.genre].color);
       n.style.setProperty("--life", (c.text.length > 42 ? 20 : 16) + "s");
       n.innerHTML = '<span class="name"></span><span class="role-badge"></span><span class="meta"></span><span class="text"></span>';
