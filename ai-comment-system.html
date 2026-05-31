@@ -1024,7 +1024,6 @@ body.overlay .comment,
   right: auto;
   bottom: auto;
   width: 100%;
-  animation: newComment .22s ease-out both;
 }
 body.overlay .caption { display: block; bottom: var(--safe-gap); }
 body.overlay .time-widget { display: block; }
@@ -2722,88 +2721,72 @@ body.theme-game {
 }
 
 /* ═══════════════════════════════════════════
-   STREAM EFFECTS — 配信画面エフェクト
-   ※ filter: blur は backdrop-filter と競合するため使わない
+   STREAM EFFECTS v3 — コメント表示 + エフェクト
    ═══════════════════════════════════════════ */
 
-/* ── コメント入場アニメーション 改良版 ── */
-@keyframes newComment {
-  0%   { opacity: 0; transform: translateX(20px) scale(.96); }
-  100% { opacity: 1; transform: translateX(0) scale(1); }
+/* ── コメント入場アニメーション（!important で確実に上書き） ── */
+@keyframes cIn {
+  from { opacity: 0; transform: translateX(18px) scale(.97); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
 }
-
-/* 入場直後にボーダーがグローする */
-@keyframes commentBorderGlow {
+@keyframes cGlow {
   0%   { box-shadow: 0 0 0 2px transparent, 0 8px 18px rgba(0,0,0,.22); }
-  45%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--user, var(--accent)) 55%, transparent),
-                     0 0 16px 2px color-mix(in srgb, var(--user, var(--accent)) 28%, transparent),
+  45%  { box-shadow: 0 0 0 2px color-mix(in srgb,var(--user,var(--accent)) 50%,transparent),
+                     0 0 14px color-mix(in srgb,var(--user,var(--accent)) 22%,transparent),
                      0 8px 18px rgba(0,0,0,.22); }
   100% { box-shadow: 0 0 0 2px transparent, 0 8px 18px rgba(0,0,0,.22); }
 }
-/* コメント自体のアニメーションは既存ルール(line1022)から引き継ぎ、ここではグローだけ追加 */
-.stage:not(.live-frame) .comment,
-body.overlay .comment {
-  animation: newComment .3s cubic-bezier(.22,.8,.46,1) both,
-             commentBorderGlow 1.4s ease-in-out .28s 1;
-}
 
-/* ── ゲームテーマ コメント入場 ── */
-@keyframes gameCommentIn {
-  from { opacity: 0; transform: translateX(16px) scale(.97); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
-body.theme-game .stage .comment,
-body.overlay.theme-game .comment {
-  animation: gameCommentIn .3s cubic-bezier(.22,.8,.46,1) both,
-             commentBorderGlow 1.4s ease-in-out .28s 1 !important;
+/* !important で position/bottom 競合を確実に排除（live-frame は除外） */
+.stage:not(.live-frame) .comment-stream .comment {
+  position: relative !important;
+  bottom: auto     !important;
+  right: auto      !important;
+  width: 100%      !important;
+  animation: cIn .28s ease-out both, cGlow 1.4s ease-in-out .26s 1 !important;
 }
 
 /* ── スーパーチャット 派手演出 ── */
-@keyframes superChatIn {
-  0%   { opacity: 0; transform: scale(.84) translateY(-12px); }
-  40%  { opacity: 1; transform: scale(1.04) translateY(2px); }
-  70%  { transform: scale(.98); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+@keyframes superIn {
+  0%   { opacity: 0; transform: scale(.86) translateY(-10px); }
+  42%  { opacity: 1; transform: scale(1.04) translateY(2px); }
+  72%  { transform: scale(.98); }
+  100% { opacity: 1; transform: scale(1); }
 }
 @keyframes superGlow {
   0%,100% { box-shadow: 0 0 0 rgba(255,211,99,0), 0 10px 28px rgba(0,0,0,.3); }
-  50%      { box-shadow: 0 0 28px 5px rgba(255,211,99,.4), 0 0 52px 10px rgba(255,150,80,.16), 0 10px 28px rgba(0,0,0,.3); }
+  50%      { box-shadow: 0 0 28px 5px rgba(255,211,99,.42), 0 0 50px 8px rgba(255,140,70,.16), 0 10px 28px rgba(0,0,0,.3); }
 }
-.comment.super {
-  animation: superChatIn .4s cubic-bezier(.18,.88,.44,1) both,
-             superGlow 2s ease-in-out .42s 2 !important;
+.stage:not(.live-frame) .comment-stream .comment.super {
+  animation: superIn .38s cubic-bezier(.18,.88,.44,1) both,
+             superGlow 2s ease-in-out .4s 2 !important;
   overflow: hidden;
 }
-/* シーン（光の筋）は backdrop-filter と干渉しないよう子要素で実装 */
 .comment.super .super-sheen {
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
-  animation: superSheen .75s ease-out .44s 1 forwards;
+  background: linear-gradient(105deg, transparent 28%, rgba(255,255,255,.34) 50%, transparent 72%);
+  animation: superSheen .7s ease-out .42s 1 forwards;
   pointer-events: none;
-  z-index: 2;
   border-radius: inherit;
 }
 @keyframes superSheen {
-  0%   { transform: translateX(-130%) skewX(-18deg); opacity: 1; }
-  100% { transform: translateX(210%)  skewX(-18deg); opacity: 0; }
+  from { transform: translateX(-130%) skewX(-18deg); opacity: 1; }
+  to   { transform: translateX(210%)  skewX(-18deg); opacity: 0; }
 }
 
-/* ── ゲームテーマ LIVE CHAT ヘッダー アニメ ── */
-@keyframes gameLaneHeaderShift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+/* ── ゲームテーマ LIVE CHAT ヘッダー ── */
+@keyframes laneShift {
+  0%,100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
 }
 body.theme-game .comment-lane::before {
   background: linear-gradient(90deg,
-    rgba(216,184,79,.92),
-    rgba(255,246,194,.9),
-    rgba(73,212,255,.78),
-    rgba(255,246,194,.9),
+    rgba(216,184,79,.92), rgba(255,246,194,.9),
+    rgba(73,212,255,.78), rgba(255,246,194,.9),
     rgba(216,184,79,.92)) !important;
   background-size: 250% 100% !important;
-  animation: gameLaneHeaderShift 4s ease-in-out infinite !important;
+  animation: laneShift 4s ease-in-out infinite !important;
 }
 
 /* ── 浮遊パーティクル ── */
@@ -2819,13 +2802,13 @@ body.theme-game .comment-lane::before {
   border-radius: 999px;
   background: var(--accent);
   opacity: 0;
-  animation: spFloat var(--dur, 9s) ease-in-out var(--delay, 0s) infinite;
+  animation: spFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite;
 }
 @keyframes spFloat {
-  0%   { opacity: 0; transform: translateY(0) scale(0); }
-  8%   { opacity: var(--op, .14); transform: translateY(-6px) scale(1); }
-  88%  { opacity: var(--op, .14); transform: translateY(var(--travel, -80px)) scale(1); }
-  100% { opacity: 0; transform: translateY(calc(var(--travel, -80px) - 8px)) scale(0); }
+  0%   { opacity:0; transform:translateY(0) scale(0); }
+  8%   { opacity:var(--op,.13); transform:translateY(-6px) scale(1); }
+  88%  { opacity:var(--op,.13); transform:translateY(var(--travel,-80px)) scale(1); }
+  100% { opacity:0; transform:translateY(calc(var(--travel,-80px) - 8px)) scale(0); }
 }
 
 /* ── 画面フラッシュ（スーパーチャット時） ── */
@@ -2834,14 +2817,13 @@ body.theme-game .comment-lane::before {
   inset: 0;
   pointer-events: none;
   z-index: 10;
-  background: rgba(255, 220, 80, .18);
+  background: rgba(255,220,80,.18);
   border-radius: inherit;
-  opacity: 0;
   animation: stageFlash .5s ease-out forwards;
 }
 @keyframes stageFlash {
-  0%   { opacity: 1; }
-  100% { opacity: 0; }
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
 /* ── コメント名 マイクロホバー ── */
