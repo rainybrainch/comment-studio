@@ -3200,7 +3200,7 @@ body.theme-game .comment-lane::before {
           <button id="clearRatedHistoryBtn" class="danger" type="button">学習データをリセット</button>
         </div>
         <div id="ratedHistoryList" class="stack"></div>
-        <div id="history" class="stack" style="display:none"></div>
+        <div id="history" class="stack"></div>
       </div><!-- /panel-body -->
     </section>
   </aside>
@@ -4957,6 +4957,14 @@ body.theme-game .comment-lane::before {
     return String(settings.ngWords || "").split(/[,\n]/).map(w => w.trim()).filter(Boolean).some(w => text.includes(w));
   }
 
+  function showCommentToast(text) {
+    const t = document.createElement("div");
+    t.style.cssText = "position:fixed;bottom:80px;right:20px;z-index:9999;background:#1a2a1a;border:2px solid #51d28b;border-radius:8px;padding:8px 14px;color:#51d28b;font-size:13px;font-weight:900;max-width:260px;box-shadow:0 4px 16px rgba(0,0,0,.4);transition:opacity .4s";
+    t.textContent = "💬 " + text.slice(0, 40);
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 400); }, 2800);
+  }
+
   function renderComment(c) {
     ["controlStream","overlayStream"].map($).filter(Boolean).forEach(stream => {
       const n = document.createElement("article");
@@ -4991,6 +4999,7 @@ body.theme-game .comment-lane::before {
     if (!isOverlay && !isFrame) {
       commentCount++;
       $("commentCount").textContent = String(commentCount);
+      showCommentToast(c.text);
       history.unshift({ at: new Date().toLocaleTimeString("ja-JP"), user: c.user, text: c.text });
       history = history.slice(0, 40);
       renderHistory();
