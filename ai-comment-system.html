@@ -5096,7 +5096,7 @@ body.theme-game .comment-lane::before {
   let _scheduleCount = 0;
   function schedule() {
     clearTimeout(autoTimer);
-    const delay = 4200 + Math.floor(Math.random() * 5600);
+    const delay = 12000 + Math.floor(Math.random() * 18000); // 12〜30秒間隔
     nextCommentIntervalMs = delay;
     nextCommentScheduledAt = Date.now() + delay;
     autoTimer = setTimeout(() => {
