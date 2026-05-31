@@ -4484,12 +4484,8 @@ body.theme-game .comment-lane::before {
       const ctx = recentText().trim();
       if (!forced && !ctx) return;
       if (!superChat && !forced && Date.now() - lastCommentAt < 1600) return;
-      if (forced && !ctx) {
-        const g = genres[settings.genre] || genres.game;
-        const fakeText = "配信中です。" + (g.guide || "今の話題でコメントを流します。");
-        transcript.push({ text: fakeText, at: Date.now(), sessionId: "auto" });
-        commentBuffer = fakeText;
-      }
+      // 文字起こしがある場合のみコメント生成（ctxが空なら発火しない）
+      if (!ctx) return;
       if (settings.commentEngine === "gemini") {
         const generated = await geminiComment(superChat);
         if (generated) return;
@@ -5110,11 +5106,13 @@ body.theme-game .comment-lane::before {
         const ctx = recentText().trim();
         const buf = countMeaningfulChars(commentBuffer);
         if (ctx && buf >= commentThreshold()) {
+          // 十分な文字起こしあり → 通常発火
           comment(false);
-        } else {
-          // テキストあり・なし関わらず強制発火（テキストなしは汎用コメント）
+        } else if (ctx) {
+          // 文字起こしあり・バッファ不足 → 強制発火（文字起こし内容は使う）
           comment(false, true);
         }
+        // 文字起こしなし → 発火しない（マイクをONにして話してください）
       }
       schedule();
     }, delay);
