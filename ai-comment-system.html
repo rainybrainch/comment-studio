@@ -5087,12 +5087,16 @@ body.theme-game .comment-lane::before {
     renderHistory();
   }
 
+  let _scheduleCount = 0;
   function schedule() {
     clearTimeout(autoTimer);
     const delay = 4200 + Math.floor(Math.random() * 5600);
     nextCommentIntervalMs = delay;
     nextCommentScheduledAt = Date.now() + delay;
     autoTimer = setTimeout(() => {
+      _scheduleCount++;
+      const dbg = document.getElementById('nextCommentCountdown');
+      if (dbg) dbg.textContent = 'tick:' + _scheduleCount + (auto ? ' AUTO' : ' OFF') + (paused ? ' PAUSE' : '');
       if (auto && !paused) {
         const ctx = recentText().trim();
         const buf = countMeaningfulChars(commentBuffer);
