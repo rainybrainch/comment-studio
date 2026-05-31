@@ -4470,31 +4470,36 @@ body.theme-game .comment-lane::before {
   }
 
   async function comment(superChat, forced = false) {
-    if (paused) return;
-    // forcedでない場合のみrecentTextチェック
-    const ctx = recentText().trim();
-    if (!forced && !ctx) return;
-    if (!superChat && !forced && Date.now() - lastCommentAt < 1600) return;
-    // forcedの場合テスト文を入れる
-    if (forced && !ctx) {
-      const g = genres[settings.genre] || genres.game;
-      pushTranscript("配信中です。" + (g.guide || "今の話題でコメントを流します。"));
+    try {
+      if (paused) return;
+      const ctx = recentText().trim();
+      if (!forced && !ctx) return;
+      if (!superChat && !forced && Date.now() - lastCommentAt < 1600) return;
+      if (forced && !ctx) {
+        const g = genres[settings.genre] || genres.game;
+        const fakeText = "配信中です。" + (g.guide || "今の話題でコメントを流します。");
+        transcript.push({ text: fakeText, at: Date.now(), sessionId: "auto" });
+        commentBuffer = fakeText;
+      }
+      if (settings.commentEngine === "gemini") {
+        const generated = await geminiComment(superChat);
+        if (generated) return;
+      }
+      const p = pickPersona();
+      if (!p) { system("[DEBUG] pickPersona が null を返しました"); return; }
+      let text = "";
+      for (let i = 0; i < 8; i++) {
+        text = buildComment(p);
+        if (!history.slice(0, 10).some(x => x.text === text)) break;
+      }
+      if (!text) { system("[DEBUG] buildComment が空文字を返しました persona=" + p.name); return; }
+      if (blocked(text)) return;
+      lastCommentAt = Date.now();
+      if (!superChat) commentBuffer = "";
+      post({ type: "comment", comment: { user: p.name, color: p.color, text, superChat } });
+    } catch(err) {
+      system("[DEBUG ERROR] " + err.message);
     }
-    if (settings.commentEngine === "gemini") {
-      const generated = await geminiComment(superChat);
-      if (generated) return;
-    }
-    const p = pickPersona();
-    if (!p) return;
-    let text = "";
-    for (let i = 0; i < 8; i++) {
-      text = buildComment(p);
-      if (!history.slice(0, 10).some(x => x.text === text)) break;
-    }
-    if (!text || blocked(text)) return;
-    lastCommentAt = Date.now();
-    if (!superChat) commentBuffer = "";
-    post({ type: "comment", comment: { user: p.name, color: p.color, text, superChat } });
   }
 
   async function geminiComment(superChat) {
