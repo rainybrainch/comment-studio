@@ -3442,36 +3442,43 @@ body.theme-game .comment-lane::before {
     return out;
   }
 
+  function safe(fn, name) {
+    try { fn(); } catch(e) {
+      console.error("[RBAI init crash]", name, e.message, e.stack);
+      window._initCrashLog = (window._initCrashLog || []);
+      window._initCrashLog.push(name + ": " + e.message);
+    }
+  }
+
   function init() {
-    // 起動時に必ずテンプレートモード・コメント表示ON に固定
     settings.showComment = "1";
     if (settings.commentEngine === "gemini") settings.commentEngine = "template";
-    applyTheme();
-    bindBus();
-    startClock();
+    safe(() => applyTheme(),            "applyTheme");
+    safe(() => bindBus(),               "bindBus");
+    safe(() => startClock(),            "startClock");
     if (isOverlay || isFrame) {
       setInterval(() => post({ type: "ready" }), 1200);
       return;
     }
-    hydrate();
-    bindControls();
-    renderPersonas();
-    renderTimers();
-    renderHistory();
-    renderTranscriptLog();
-    renderRatedHistory();
-    renderLayoutUI();
-    schedule();
-    initParticles();
-    updateObsUrl();
-    bindPanelToggles();
-    bindQuickCockpit();
-    bindGenreChips();
-    bindLiveHud();
-    bindDragEngine();
-    applySectionIcons();
-    setInterval(() => { updateLiveBar(); updateNextCommentCountdown(); }, 400);
-    setInterval(updateObsState, 1000);
+    safe(() => hydrate(),               "hydrate");
+    safe(() => bindControls(),          "bindControls");
+    safe(() => renderPersonas(),        "renderPersonas");
+    safe(() => renderTimers(),          "renderTimers");
+    safe(() => renderHistory(),         "renderHistory");
+    safe(() => renderTranscriptLog(),   "renderTranscriptLog");
+    safe(() => renderRatedHistory(),    "renderRatedHistory");
+    safe(() => renderLayoutUI(),        "renderLayoutUI");
+    safe(() => schedule(),              "schedule");
+    safe(() => initParticles(),         "initParticles");
+    safe(() => updateObsUrl(),          "updateObsUrl");
+    safe(() => bindPanelToggles(),      "bindPanelToggles");
+    safe(() => bindQuickCockpit(),      "bindQuickCockpit");
+    safe(() => bindGenreChips(),        "bindGenreChips");
+    safe(() => bindLiveHud(),           "bindLiveHud");
+    safe(() => bindDragEngine(),        "bindDragEngine");
+    safe(() => applySectionIcons(),     "applySectionIcons");
+    setInterval(() => { try { updateLiveBar(); updateNextCommentCountdown(); } catch {} }, 400);
+    setInterval(() => { try { updateObsState(); } catch {} }, 1000);
     syncPersonaSheet(true);
     setInterval(() => syncPersonaSheet(true), 5 * 60 * 1000);
     system("操作画面を起動しました。OBSにはコメント表示URLをブラウザソースとして貼ってください。");
@@ -6159,17 +6166,24 @@ document.addEventListener('DOMContentLoaded', function() {
 // 3秒後にIIFE内のcommentを直接呼び出してテスト
 setTimeout(function() {
   try {
-    if (window._rbai && window._rbai.comment) {
+    var crash = window._initCrashLog;
+    if (crash && crash.length) {
+      var s = document.getElementById('controlStream');
+      if (s) {
+        var n = document.createElement('div');
+        n.style.cssText = 'background:#3a1a1a;border-left:4px solid #ff4444;border-radius:8px;padding:8px 12px;margin:4px 0;width:100%;position:relative;color:#fff;font-size:12px;font-weight:bold;box-sizing:border-box;white-space:pre-wrap';
+        n.textContent = '⚠ クラッシュ箇所:\n' + crash.join('\n');
+        s.prepend(n);
+      }
+    } else if (window._rbai && window._rbai.comment) {
       window._rbai.comment(false, true);
       console.log('[RBAI] comment() called successfully');
     } else {
-      console.error('[RBAI] _rbai not available - IIFE may have crashed');
-      // IIFEがクラッシュしている場合は直接DOMに追加
       var s = document.getElementById('controlStream');
       if (s) {
         var n = document.createElement('div');
         n.style.cssText = 'background:#3a1a1a;border-left:4px solid #ff4444;border-radius:8px;padding:10px 14px;margin:4px 0;width:100%;position:relative;color:#fff;font-size:13px;font-weight:bold;box-sizing:border-box';
-        n.textContent = '⚠ IIFEクラッシュ: JSエラーが起きています';
+        n.textContent = '⚠ 不明なクラッシュ: _rbai未定義';
         s.prepend(n);
       }
     }
