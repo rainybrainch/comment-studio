@@ -3421,6 +3421,7 @@ body.theme-game .comment-lane::before {
   let commentBuffer = "";
   let sheetLastSyncAt = 0;
   let sheetSyncing = null;
+  const _seenStamps = new Set();
 
   document.body.classList.toggle("overlay", isOverlay);
   document.body.classList.toggle("frame", isFrame);
@@ -3712,7 +3713,6 @@ body.theme-game .comment-lane::before {
     }).catch(() => {});
   }
 
-  const _seenStamps = new Set();
   function receive(event) {
     if (!event) return;
     if (event.type === "ready") { obsSeenAt = Date.now(); return; }
@@ -6119,23 +6119,36 @@ body.theme-game .comment-lane::before {
 })();
 </script>
 <script>
-// IIFEとは独立したデバッグスクリプト
+// エラーログシステム
+var _errorLog = [];
 window.onerror = function(msg, src, line) {
-  var el = document.getElementById('liveBar');
-  if (el) {
-    el.style.background = 'rgba(255,50,50,.4)';
-    el.innerHTML = '<span style="color:#fff;font-size:11px;font-weight:bold">JS ERROR line:' + line + ' — ' + String(msg).slice(0, 120) + '</span>';
-  }
+  var entry = 'ERR line:' + line + ' — ' + String(msg).slice(0, 200);
+  _errorLog.push(entry);
+  var dot = document.getElementById('errorDot');
+  if (dot) { dot.style.display = 'inline-block'; dot.title = _errorLog.join('\n'); }
   console.error('[RBAI ERR]', msg, line);
 };
 window.onunhandledrejection = function(e) {
-  var el = document.getElementById('liveBar');
-  if (el) {
-    el.style.background = 'rgba(255,150,0,.4)';
-    el.innerHTML = '<span style="color:#fff;font-size:11px;font-weight:bold">PROMISE REJ — ' + String(e.reason).slice(0, 120) + '</span>';
-  }
+  var entry = 'REJ — ' + String(e.reason).slice(0, 200);
+  _errorLog.push(entry);
+  var dot = document.getElementById('errorDot');
+  if (dot) { dot.style.display = 'inline-block'; dot.title = _errorLog.join('\n'); }
   console.error('[RBAI REJ]', e.reason);
 };
+document.addEventListener('DOMContentLoaded', function() {
+  // エラードットをステータスバーに追加
+  var bar = document.getElementById('liveBar');
+  if (bar) {
+    var dot = document.createElement('span');
+    dot.id = 'errorDot';
+    dot.style.cssText = 'display:none;background:#ff3344;border-radius:999px;width:10px;height:10px;cursor:pointer;flex-shrink:0;box-shadow:0 0 0 4px rgba(255,51,68,.3)';
+    dot.title = 'エラーなし';
+    dot.addEventListener('click', function() {
+      alert(_errorLog.length ? _errorLog.join('\n\n') : 'エラーなし');
+    });
+    bar.appendChild(dot);
+  }
+});
 // 2秒後: controlStreamに直接テストコメントを追加
 setTimeout(function() {
   var s = document.getElementById('controlStream');
