@@ -1008,7 +1008,8 @@ body.overlay .comment-lane {
   height: calc(100vh - var(--safe-gap) * 2 - var(--top-ui-h));
 }
 body.overlay .comment-stream,
-.stage.comment-only .comment-stream {
+.stage.comment-only .comment-stream,
+.stage:not(.live-frame) .comment-stream {
   inset: 0;
   display: flex;
   flex-direction: column;
@@ -1017,7 +1018,8 @@ body.overlay .comment-stream,
   overflow: hidden;
 }
 body.overlay .comment,
-.stage.comment-only .comment {
+.stage.comment-only .comment,
+.stage:not(.live-frame) .comment {
   position: relative;
   right: auto;
   bottom: auto;
@@ -1027,7 +1029,8 @@ body.overlay .comment,
 body.overlay .caption { display: block; bottom: var(--safe-gap); }
 body.overlay .time-widget { display: block; }
 body.theme-game.overlay .comment-stream,
-body.theme-game .stage.comment-only .comment-stream {
+body.theme-game .stage.comment-only .comment-stream,
+body.theme-game .stage:not(.live-frame) .comment-stream {
   inset: 52px 12px 12px;
 }
 body.theme-game .stage:fullscreen .comment-lane {
@@ -4866,11 +4869,7 @@ body.theme-game {
         roleBadge.style.display = "inline-block";
       }
       n.querySelector(".text").textContent = c.text;
-      if (stream.closest(".stage.live-frame") || stream.closest(".stage.comment-only") || document.body.classList.contains("overlay")) {
-        stream.prepend(n);
-      } else {
-        stream.append(n);
-      }
+      stream.prepend(n);
       trimCommentStream(stream);
     });
     if (!isOverlay && !isFrame) {
@@ -4932,8 +4931,8 @@ body.theme-game {
         if (ctx && buf >= commentThreshold()) {
           // 十分なテキストあり → 通常発火
           comment(false);
-        } else {
-          // テキストあるがバッファ不足 or テキストなし(マイクオフ等) → 強制発火
+        } else if (ctx) {
+          // テキストあるがバッファ不足 → 強制発火
           comment(false, true);
         }
       }
