@@ -3422,6 +3422,8 @@ body.theme-game .comment-lane::before {
   let sheetLastSyncAt = 0;
   let sheetSyncing = null;
   const _seenStamps = new Set();
+  let nextCommentScheduledAt = 0;
+  let nextCommentIntervalMs = 8000;
 
   document.body.classList.toggle("overlay", isOverlay);
   document.body.classList.toggle("frame", isFrame);
@@ -5312,8 +5314,6 @@ body.theme-game .comment-lane::before {
   }
 
   /* ─── ライブバー + カウントダウン ─── */
-  let nextCommentScheduledAt = 0;
-  let nextCommentIntervalMs = 8000;
 
   function updateLiveBar() {
     const bar = $("liveBar");
