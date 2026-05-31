@@ -3442,11 +3442,9 @@ body.theme-game .comment-lane::before {
   }
 
   function init() {
-    // showComment が誤って "0" になっていたら強制リセット
-    if (settings.showComment === "0") {
-      settings.showComment = "1";
-      saveSettings();
-    }
+    // 起動時に必ずテンプレートモード・コメント表示ON に固定
+    settings.showComment = "1";
+    if (settings.commentEngine === "gemini") settings.commentEngine = "template";
     applyTheme();
     bindBus();
     startClock();
@@ -5094,10 +5092,9 @@ body.theme-game .comment-lane::before {
         const ctx = recentText().trim();
         const buf = countMeaningfulChars(commentBuffer);
         if (ctx && buf >= commentThreshold()) {
-          // 十分なテキストあり → 通常発火
           comment(false);
-        } else if (ctx) {
-          // テキストあるがバッファ不足 → 強制発火
+        } else {
+          // テキストあり・なし関わらず強制発火（テキストなしは汎用コメント）
           comment(false, true);
         }
       }
