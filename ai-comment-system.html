@@ -2732,6 +2732,135 @@ body.theme-game {
   line-height: 1.5;
   padding-left: 2px;
 }
+
+/* ═══════════════════════════════════════════
+   STREAM EFFECTS — 配信画面エフェクト
+   ═══════════════════════════════════════════ */
+
+/* ── コメント入場アニメーション 改良版 ── */
+@keyframes newComment {
+  0%   { opacity: 0; transform: translateX(22px) scale(.96); filter: blur(4px); }
+  55%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+}
+
+/* 入場直後にボーダーがグローする */
+@keyframes commentBorderGlow {
+  0%,100% { box-shadow: 0 8px 18px rgba(0,0,0,.22); }
+  45%      { box-shadow: 0 0 0 2px color-mix(in srgb, var(--user, var(--accent)) 28%, transparent),
+                         0 0 18px 2px color-mix(in srgb, var(--user, var(--accent)) 22%, transparent),
+                         0 8px 18px rgba(0,0,0,.22); }
+}
+.stage:not(.live-frame) .comment,
+body.overlay .comment {
+  animation: newComment .3s cubic-bezier(.22,.8,.46,1) both,
+             commentBorderGlow 1.6s ease-in-out .28s 1;
+}
+
+/* ── スーパーチャット 派手演出 ── */
+@keyframes superChatIn {
+  0%   { opacity: 0; transform: scale(.82) translateY(-14px); filter: brightness(2.4) blur(6px); }
+  35%  { opacity: 1; transform: scale(1.05) translateY(2px); filter: brightness(1.8) blur(0); }
+  65%  { transform: scale(.98) translateY(-1px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: brightness(1); }
+}
+@keyframes superGlow {
+  0%,100% { box-shadow: 0 0 0 rgba(255,211,99,0), 0 10px 28px rgba(0,0,0,.3); }
+  50%      { box-shadow: 0 0 32px 6px rgba(255,211,99,.38), 0 0 60px 12px rgba(255,150,80,.18), 0 10px 28px rgba(0,0,0,.3); }
+}
+@keyframes superSheen {
+  0%   { transform: translateX(-140%) skewX(-20deg); opacity: .8; }
+  100% { transform: translateX(220%)  skewX(-20deg); opacity: 0; }
+}
+.comment.super {
+  animation: superChatIn .42s cubic-bezier(.18,.88,.44,1) both,
+             superGlow 2.2s ease-in-out .45s 2 !important;
+  overflow: hidden;
+  position: relative;
+}
+.comment.super::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.38) 50%, transparent 65%);
+  animation: superSheen .8s ease-out .46s 1;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── ゲームテーマ LIVE CHAT ヘッダー アニメ ── */
+@keyframes gameLaneHeaderShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+body.theme-game .comment-lane::before {
+  background: linear-gradient(90deg,
+    rgba(216,184,79,.92),
+    rgba(255,246,194,.9),
+    rgba(73,212,255,.78),
+    rgba(255,246,194,.9),
+    rgba(216,184,79,.92));
+  background-size: 250% 100%;
+  animation: gameLaneHeaderShift 4s ease-in-out infinite !important;
+}
+
+/* ── ゲームテーマ コメント入場 ── */
+@keyframes gameCommentIn {
+  from { opacity: 0; transform: translateX(18px) scale(.96); filter: blur(3px); }
+  to   { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
+}
+body.theme-game .stage.comment-only .comment,
+body.overlay.theme-game .comment {
+  animation: gameCommentIn .3s cubic-bezier(.22,.8,.46,1) both,
+             commentBorderGlow 1.4s ease-in-out .28s 1;
+}
+
+/* ── 浮遊パーティクル ── */
+.stage-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.sp {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0;
+  animation: spFloat var(--dur, 9s) ease-in-out var(--delay, 0s) infinite;
+}
+@keyframes spFloat {
+  0%          { opacity: 0; transform: translateY(0) scale(0); }
+  8%          { opacity: var(--op, .15); transform: translateY(-6px) scale(1); }
+  88%         { opacity: var(--op, .15); transform: translateY(var(--travel, -80px)) scale(1); }
+  100%        { opacity: 0; transform: translateY(calc(var(--travel, -80px) - 8px)) scale(0); }
+}
+
+/* ── 画面フラッシュ（スーパーチャット時） ── */
+.stage-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 99;
+  background: rgba(255, 220, 80, .22);
+  border-radius: inherit;
+  opacity: 0;
+  animation: stageFlash .55s ease-out forwards;
+}
+@keyframes stageFlash {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── コメント名 マイクロホバー ── */
+.comment .name {
+  transition: text-shadow .25s;
+}
+.comment:hover .name {
+  text-shadow: 0 0 14px color-mix(in srgb, var(--user, var(--accent)) 72%, transparent);
+}
 </style>
 </head>
 <body>
@@ -3122,7 +3251,7 @@ body.theme-game {
           <button id="demoBurstBtn" class="primary" type="button">コメント確認</button>
         </div>
       </div>
-      <section class="stage comment-only">
+      <section class="stage comment-only" id="mainStage">
 
         <!-- ── フローティングHUD（全画面・拡大時に表示） ── -->
         <div class="live-hud" id="liveHud">
@@ -3360,6 +3489,7 @@ body.theme-game {
     renderRatedHistory();
     renderLayoutUI();
     schedule();
+    initParticles();
     updateObsUrl();
     bindPanelToggles();
     bindQuickCockpit();
@@ -4871,6 +5001,7 @@ body.theme-game {
       n.querySelector(".text").textContent = c.text;
       stream.prepend(n);
       trimCommentStream(stream);
+      if (c.superChat) triggerSuperChatFx();
     });
     if (!isOverlay && !isFrame) {
       commentCount++;
@@ -4890,6 +5021,42 @@ body.theme-game {
     const max = 28;
     while (stream.children.length > max) {
       stream.removeChild(stream.lastElementChild);
+    }
+  }
+
+  // ── 配信エフェクト ──────────────────────────────
+
+  function triggerSuperChatFx() {
+    const stage = $("mainStage") || document.querySelector(".stage");
+    if (!stage) return;
+    const flash = document.createElement("div");
+    flash.className = "stage-flash";
+    stage.appendChild(flash);
+    flash.addEventListener("animationend", () => flash.remove());
+  }
+
+  function initParticles() {
+    const stage = $("mainStage") || document.querySelector(".stage");
+    if (!stage) return;
+    const wrap = document.createElement("div");
+    wrap.className = "stage-particles";
+    stage.prepend(wrap);
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("div");
+      p.className = "sp";
+      const size = 2 + Math.random() * 3;
+      const travel = -(50 + Math.random() * 120);
+      p.style.cssText = [
+        `width:${size}px`, `height:${size}px`,
+        `left:${Math.random() * 100}%`,
+        `bottom:${Math.random() * 35}%`,
+        `--dur:${7 + Math.random() * 8}s`,
+        `--delay:${Math.random() * 9}s`,
+        `--travel:${travel}px`,
+        `--op:${0.08 + Math.random() * 0.14}`
+      ].join(";");
+      wrap.appendChild(p);
     }
   }
 
