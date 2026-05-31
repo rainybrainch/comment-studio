@@ -3455,6 +3455,8 @@ body.theme-game .comment-lane::before {
   function init() {
     settings.showComment = "1";
     if (settings.commentEngine === "gemini") settings.commentEngine = "template";
+    // 特定人格固定になっていたら自動選択に戻す
+    if (settings.persona !== "auto" && settings.persona !== "all") settings.persona = "auto";
     safe(() => applyTheme(),            "applyTheme");
     safe(() => bindBus(),               "bindBus");
     safe(() => startClock(),            "startClock");
@@ -4436,10 +4438,9 @@ body.theme-game .comment-lane::before {
       const pool = ranked.filter(x => x.score >= Math.max(1, topScore - 2)).slice(0, 10).map(x => x.persona);
       return sample(pool);
     }
-    const themed = personas.filter(x => x.genre === settings.genre);
-    const softListeners = personas.filter(x => ["listener"].includes(x.id));
-    const pool = [...themed, ...softListeners];
-    return sample(pool.length ? pool : personas);
+    // スコア0のときは全有効人格からランダム（ジャンル絞りなし）
+    const enabled = personas.filter(x => x.enabled !== false);
+    return sample(enabled.length ? enabled : personas);
   }
 
   function personaRelevance(p, text) {
