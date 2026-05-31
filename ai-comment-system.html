@@ -4553,11 +4553,15 @@ body.theme-game .comment-lane::before {
       ].join(" ")
     };
     try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 3000);
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
       });
+      clearTimeout(tid);
       if (!res.ok) throw new Error("Gemini proxy " + res.status);
       const data = await res.json();
       const comments = normalizeGeminiComments(data.comments);
