@@ -6122,12 +6122,18 @@ body.theme-game .comment-lane::before {
 // IIFEとは独立したデバッグスクリプト
 window.onerror = function(msg, src, line) {
   var el = document.getElementById('liveBar');
-  if (el) el.style.background = 'rgba(255,50,50,.4)';
+  if (el) {
+    el.style.background = 'rgba(255,50,50,.4)';
+    el.innerHTML = '<span style="color:#fff;font-size:11px;font-weight:bold">JS ERROR line:' + line + ' — ' + String(msg).slice(0, 120) + '</span>';
+  }
   console.error('[RBAI ERR]', msg, line);
 };
 window.onunhandledrejection = function(e) {
   var el = document.getElementById('liveBar');
-  if (el) el.style.background = 'rgba(255,150,0,.4)';
+  if (el) {
+    el.style.background = 'rgba(255,150,0,.4)';
+    el.innerHTML = '<span style="color:#fff;font-size:11px;font-weight:bold">PROMISE REJ — ' + String(e.reason).slice(0, 120) + '</span>';
+  }
   console.error('[RBAI REJ]', e.reason);
 };
 // 2秒後: controlStreamに直接テストコメントを追加
