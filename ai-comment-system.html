@@ -6113,5 +6113,28 @@ body.theme-game .comment-lane::before {
   }
 })();
 </script>
+<script>
+// IIFEとは独立したデバッグスクリプト
+window.onerror = function(msg, src, line) {
+  var el = document.getElementById('liveBar');
+  if (el) el.style.background = 'rgba(255,50,50,.4)';
+  console.error('[RBAI ERR]', msg, line);
+};
+window.onunhandledrejection = function(e) {
+  var el = document.getElementById('liveBar');
+  if (el) el.style.background = 'rgba(255,150,0,.4)';
+  console.error('[RBAI REJ]', e.reason);
+};
+// 2秒後: controlStreamに直接テストコメントを追加
+setTimeout(function() {
+  var s = document.getElementById('controlStream');
+  if (!s) { console.error('[RBAI] controlStream not found'); return; }
+  var n = document.createElement('div');
+  n.style.cssText = 'background:#1a3a1a;border-left:4px solid #51d28b;border-radius:8px;padding:10px 14px;margin:4px 0;width:100%;position:relative;bottom:auto;right:auto;color:#fff;font-size:14px;font-weight:bold;box-sizing:border-box';
+  n.textContent = '★ テスト: CSSとDOMは正常です';
+  s.prepend(n);
+  console.log('[RBAI] test comment added to controlStream');
+}, 2000);
+</script>
 </body>
 </html>
