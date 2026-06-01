@@ -600,6 +600,59 @@ h1 {
       </div>
     </section>
 
+    <!-- ═══ Gemini 人格生成 ═══ -->
+    <section class="panel" id="geminiPanel">
+      <div class="panel-head">
+        <div class="panel-title">🤖 行動の軌跡から人格を生成</div>
+      </div>
+      <div class="panel-body">
+        <p class="small" style="margin-bottom:10px;color:var(--muted)">
+          見た動画や読んだ本のURL・メモを送ると、Gemini がその内容に触れた視聴者の人格を自動生成します。
+        </p>
+        <div class="field">
+          <label for="geminiSourceUrl">YouTube URL または 記事URL</label>
+          <input id="geminiSourceUrl" type="url" placeholder="https://youtube.com/watch?v=...">
+          <span id="geminiUrlStatus" class="small" style="display:block;margin-top:3px;color:var(--good)"></span>
+        </div>
+        <div class="field">
+          <label for="geminiText">内容メモ・感想・本のハイライト（長文OK）</label>
+          <textarea id="geminiText" placeholder="動画を見ての感想、本を読んだ時の気づき、印象に残った言葉など...&#10;URLだけでも動作します。メモを加えると人格の精度が上がります。" style="min-height:90px"></textarea>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label for="geminiCount">生成数</label>
+            <select id="geminiCount">
+              <option value="1">1人</option>
+              <option value="3" selected>3人</option>
+              <option value="5">5人</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="geminiTheme">テーマ</label>
+            <select id="geminiTheme">
+              <option value="auto">自動判定</option>
+              <option value="book">本</option>
+              <option value="movie">映画</option>
+              <option value="game">ゲーム</option>
+              <option value="talk">雑談</option>
+              <option value="study">学習</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="geminiApiKey">Gemini API キー
+            <a href="https://aistudio.google.com/app/apikey" target="_blank"
+               style="color:var(--cyan);margin-left:8px;font-weight:700">無料で取得 →</a>
+          </label>
+          <input id="geminiApiKey" type="password" placeholder="AIzaSy...（ブラウザに保存されます）">
+        </div>
+        <button id="geminiGenerateBtn" class="primary" type="button" style="width:100%;min-height:42px;font-size:13px">
+          🤖 Gemini で人格を生成する
+        </button>
+        <div id="geminiStatus" class="small" style="margin-top:8px;min-height:1.4em;text-align:center"></div>
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel-head">
         <div class="panel-title">ストック操作</div>
@@ -884,6 +937,153 @@ h1 {
     els.moviePresetBtn.addEventListener("click", () => addThemePreset("movie"));
     els.gamePresetBtn.addEventListener("click", () => addThemePreset("game"));
     els.listenerGenBtn.addEventListener("click", () => window.open("ai-listener-personality.html", "_blank"));
+
+    /* ── Gemini 人格生成 ── */
+    const GEMINI_KEY = "channel_os_gemini_key_v1";
+    const geminiApiKeyEl  = document.getElementById("geminiApiKey");
+    const geminiSourceEl  = document.getElementById("geminiSourceUrl");
+    const geminiTextEl    = document.getElementById("geminiText");
+    const geminiCountEl   = document.getElementById("geminiCount");
+    const geminiThemeEl   = document.getElementById("geminiTheme");
+    const geminiStatusEl  = document.getElementById("geminiStatus");
+    const geminiUrlStatus = document.getElementById("geminiUrlStatus");
+    const geminiGenerateBtn = document.getElementById("geminiGenerateBtn");
+
+    // APIキー復元
+    geminiApiKeyEl.value = localStorage.getItem(GEMINI_KEY) || "";
+
+    // YouTube URL 貼り付け → タイトル自動取得
+    geminiSourceEl.addEventListener("blur", async () => {
+      const url = geminiSourceEl.value.trim();
+      if (!url || (!url.includes("youtube.com") && !url.includes("youtu.be"))) return;
+      geminiUrlStatus.textContent = "動画情報を取得中...";
+      try {
+        const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`);
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+        geminiUrlStatus.textContent = `✓ 「${d.title}」/ ${d.author_name}`;
+        geminiUrlStatus.dataset.title  = d.title;
+        geminiUrlStatus.dataset.author = d.author_name;
+      } catch {
+        geminiUrlStatus.textContent = "タイトルを取得できませんでした（手動でメモを追加してください）";
+      }
+    });
+
+    geminiGenerateBtn.addEventListener("click", async () => {
+      const apiKey = geminiApiKeyEl.value.trim();
+      const sourceUrl = geminiSourceEl.value.trim();
+      const notes     = geminiTextEl.value.trim();
+      const count     = parseInt(geminiCountEl.value || "3");
+
+      if (!apiKey) { geminiStatusEl.textContent = "Gemini APIキーを入力してください"; return; }
+      if (!sourceUrl && !notes) { geminiStatusEl.textContent = "URLかテキストを入力してください"; return; }
+      localStorage.setItem(GEMINI_KEY, apiKey);
+      geminiGenerateBtn.disabled = true;
+      geminiStatusEl.style.color = "var(--muted)";
+
+      try {
+        // ソース情報組み立て
+        const ytTitle  = geminiUrlStatus.dataset.title  || "";
+        const ytAuthor = geminiUrlStatus.dataset.author || "";
+        const sourceLabel = ytTitle
+          ? `YouTube動画「${ytTitle}」（投稿者: ${ytAuthor}）\nURL: ${sourceUrl}`
+          : sourceUrl || "";
+
+        // テーマ判定
+        let theme = geminiThemeEl.value;
+        if (theme === "auto") {
+          const combo = (sourceUrl + " " + notes).toLowerCase();
+          if (/game|ゲーム/.test(combo))         theme = "game";
+          else if (/movie|映画/.test(combo))     theme = "movie";
+          else if (/book|本|読書/.test(combo))   theme = "book";
+          else if (/study|学習|教育/.test(combo)) theme = "study";
+          else theme = "talk";
+        }
+
+        const prompt = `あなたは配信者のAIコメント人格を設計するシステムです。
+
+以下の素材を視聴・読書した視聴者が配信コメント欄に書き込むような人格を${count}人分生成してください。
+
+【素材】
+${sourceLabel}
+${notes ? `\n【内容メモ・感想】\n${notes}` : ""}
+
+ルール:
+- 人格同士は異なるタイプにする（共感型・質問型・知識型・ネタ型・懐疑型など）
+- コメント例はその素材を体験した人が実際に書きそうな言葉にする
+- 出力はJSONのみ。説明文は不要
+
+[
+  {
+    "name": "人格名（8文字以内）",
+    "tone": "コメントスタイルの説明（60文字以内）",
+    "roleType": "共感勢|質問勢|知識勢|応援勢|ネタ勢|懐疑勢|妄想勢|初心者勢 のいずれか",
+    "tags": ["タグ1","タグ2","タグ3"],
+    "examples": ["コメント例1","コメント例2","コメント例3","コメント例4","コメント例5"],
+    "catchphrase": "この人格の口癖（20文字以内）",
+    "color": "#16進数カラーコード（鮮やかな色）"
+  }
+]`;
+
+        geminiStatusEl.textContent = "Gemini に送信中...";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const res = await fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.85, maxOutputTokens: 2048 }
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(()=>({}));
+          throw new Error(err?.error?.message || `API error ${res.status}`);
+        }
+        const data = await res.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        const jsonMatch = rawText.match(/\[[\s\S]*?\]/);
+        if (!jsonMatch) throw new Error("JSONの抽出に失敗しました");
+        const generated = JSON.parse(jsonMatch[0]);
+
+        const now = Date.now();
+        const sourceStr = [sourceLabel, notes].filter(Boolean).join("\n").slice(0, 6000);
+        generated.forEach((p, i) => {
+          personas.unshift({
+            id: `gemini_${now}_${i}`,
+            name:       (p.name        || "生成人格").slice(0, 24),
+            color:      p.color        || ["#60b7ff","#f2c14e","#57d68d","#ff6b7a","#c890d8"][i % 5],
+            tone:       (p.tone        || "").slice(0, 180),
+            length:     "short",
+            theme,
+            enabled:    true,
+            tags:       Array.isArray(p.tags) ? p.tags.slice(0, 10) : [],
+            source:     sourceStr,
+            examples:   Array.isArray(p.examples) ? p.examples.slice(0, 20).map(e => String(e).slice(0, 65)) : [],
+            catchphrase:(p.catchphrase || "").slice(0, 40),
+            roleType:   p.roleType     || "共感勢",
+            createdAt:  new Date().toISOString(),
+            updatedAt:  new Date().toISOString()
+          });
+        });
+
+        save();
+        render();
+        geminiStatusEl.style.color = "var(--good)";
+        geminiStatusEl.textContent = `✓ ${generated.length}人の人格を生成しました`;
+        geminiSourceEl.value = "";
+        geminiTextEl.value   = "";
+        geminiUrlStatus.textContent = "";
+        delete geminiUrlStatus.dataset.title;
+        delete geminiUrlStatus.dataset.author;
+
+      } catch (err) {
+        geminiStatusEl.style.color = "var(--danger)";
+        geminiStatusEl.textContent = `エラー: ${err.message}`;
+      } finally {
+        geminiGenerateBtn.disabled = false;
+      }
+    });
+
     els.exportBtn.addEventListener("click", exportJson);
     els.importBtn.addEventListener("click", () => els.fileInput.click());
     els.fileInput.addEventListener("change", importJson);
