@@ -958,7 +958,7 @@ h1 {
       localStorage.setItem(GEMINI_KEYS_STORAGE, JSON.stringify(keys));
     }
     function getValidKeys() {
-      return loadGeminiKeys().filter(k => k && k.startsWith("AIza"));
+      return loadGeminiKeys().filter(k => k && k.length > 10);
     }
     // ローテーション（レート超過時に次のキーへ）
     let keyIndex = 0;
@@ -984,7 +984,7 @@ h1 {
     geminiSaveKeysBtn.addEventListener("click", () => {
       const keys = geminiKeyEls.map(el => el?.value.trim() || "").filter(Boolean);
       saveGeminiKeys(keys);
-      const count = keys.filter(k => k.startsWith("AIza")).length;
+      const count = keys.filter(k => k.length > 10).length;
       geminiKeyStatusEl.textContent = `✓ ${count}件のキーを保存しました`;
       geminiKeyStatusEl.style.color = "var(--good)";
     });
