@@ -640,11 +640,17 @@ h1 {
           </div>
         </div>
         <div class="field">
-          <label for="geminiApiKey">Gemini API キー
+          <label>Gemini API キー（最大5つ・自動ローテーション）
             <a href="https://aistudio.google.com/app/apikey" target="_blank"
                style="color:var(--cyan);margin-left:8px;font-weight:700">無料で取得 →</a>
           </label>
-          <input id="geminiApiKey" type="password" placeholder="AIzaSy...（ブラウザに保存されます）">
+          <input id="geminiKey1" type="password" placeholder="キー 1（必須）">
+          <input id="geminiKey2" type="password" placeholder="キー 2（任意）" style="margin-top:4px">
+          <input id="geminiKey3" type="password" placeholder="キー 3（任意）" style="margin-top:4px">
+          <input id="geminiKey4" type="password" placeholder="キー 4（任意）" style="margin-top:4px">
+          <input id="geminiKey5" type="password" placeholder="キー 5（任意）" style="margin-top:4px">
+          <div id="geminiKeyStatus" class="small" style="margin-top:4px;color:var(--muted)">未保存</div>
+          <button id="geminiSaveKeysBtn" type="button" style="margin-top:6px;width:100%">キーを保存する</button>
         </div>
         <button id="geminiGenerateBtn" class="primary" type="button" style="width:100%;min-height:42px;font-size:13px">
           🤖 Gemini で人格を生成する
@@ -939,8 +945,49 @@ h1 {
     els.listenerGenBtn.addEventListener("click", () => window.open("ai-listener-personality.html", "_blank"));
 
     /* ── Gemini 人格生成 ── */
-    const GEMINI_KEY = "channel_os_gemini_key_v1";
-    const geminiApiKeyEl  = document.getElementById("geminiApiKey");
+    const GEMINI_KEYS_STORAGE = "channel_os_gemini_keys_v1";
+    const geminiKeyEls = [1,2,3,4,5].map(n => document.getElementById(`geminiKey${n}`));
+    const geminiKeyStatusEl = document.getElementById("geminiKeyStatus");
+    const geminiSaveKeysBtn = document.getElementById("geminiSaveKeysBtn");
+
+    // キー読み込み
+    function loadGeminiKeys() {
+      try { return JSON.parse(localStorage.getItem(GEMINI_KEYS_STORAGE) || "[]"); } catch { return []; }
+    }
+    function saveGeminiKeys(keys) {
+      localStorage.setItem(GEMINI_KEYS_STORAGE, JSON.stringify(keys));
+    }
+    function getValidKeys() {
+      return loadGeminiKeys().filter(k => k && k.startsWith("AIza"));
+    }
+    // ローテーション（レート超過時に次のキーへ）
+    let keyIndex = 0;
+    function pickKey(keys) {
+      if (!keys.length) return null;
+      return keys[keyIndex % keys.length];
+    }
+    function rotateKey(keys) {
+      keyIndex = (keyIndex + 1) % keys.length;
+    }
+
+    // UI に保存済みキーを復元（マスク表示）
+    (function restoreKeys() {
+      const keys = loadGeminiKeys();
+      keys.forEach((k, i) => {
+        if (geminiKeyEls[i] && k) geminiKeyEls[i].value = k;
+      });
+      const count = getValidKeys().length;
+      geminiKeyStatusEl.textContent = count ? `✓ ${count}件のキーを保存済み` : "未保存";
+      geminiKeyStatusEl.style.color = count ? "var(--good)" : "var(--muted)";
+    })();
+
+    geminiSaveKeysBtn.addEventListener("click", () => {
+      const keys = geminiKeyEls.map(el => el?.value.trim() || "").filter(Boolean);
+      saveGeminiKeys(keys);
+      const count = keys.filter(k => k.startsWith("AIza")).length;
+      geminiKeyStatusEl.textContent = `✓ ${count}件のキーを保存しました`;
+      geminiKeyStatusEl.style.color = "var(--good)";
+    });
     const geminiSourceEl  = document.getElementById("geminiSourceUrl");
     const geminiTextEl    = document.getElementById("geminiText");
     const geminiCountEl   = document.getElementById("geminiCount");
@@ -970,14 +1017,13 @@ h1 {
     });
 
     geminiGenerateBtn.addEventListener("click", async () => {
-      const apiKey = geminiApiKeyEl.value.trim();
+      const validKeys = getValidKeys();
       const sourceUrl = geminiSourceEl.value.trim();
       const notes     = geminiTextEl.value.trim();
       const count     = parseInt(geminiCountEl.value || "3");
 
-      if (!apiKey) { geminiStatusEl.textContent = "Gemini APIキーを入力してください"; return; }
+      if (!validKeys.length) { geminiStatusEl.textContent = "Gemini APIキーを保存してください"; return; }
       if (!sourceUrl && !notes) { geminiStatusEl.textContent = "URLかテキストを入力してください"; return; }
-      localStorage.setItem(GEMINI_KEY, apiKey);
       geminiGenerateBtn.disabled = true;
       geminiStatusEl.style.color = "var(--muted)";
 
@@ -1026,6 +1072,7 @@ ${notes ? `\n【内容メモ・感想】\n${notes}` : ""}
 ]`;
 
         geminiStatusEl.textContent = "Gemini に送信中...";
+        let apiKey = pickKey(validKeys);
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const res = await fetch(apiUrl, {
           method: "POST",
@@ -1037,7 +1084,20 @@ ${notes ? `\n【内容メモ・感想】\n${notes}` : ""}
         });
         if (!res.ok) {
           const err = await res.json().catch(()=>({}));
-          throw new Error(err?.error?.message || `API error ${res.status}`);
+          // レート超過なら次のキーへローテーション
+          if (res.status === 429 && validKeys.length > 1) {
+            rotateKey(validKeys);
+            geminiStatusEl.textContent = `キー${keyIndex+1}に切り替えて再試行中...`;
+            apiKey = pickKey(validKeys);
+            const res2 = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+              { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.85,maxOutputTokens:2048} }) }
+            );
+            if (!res2.ok) throw new Error(`API error ${res2.status}`);
+            Object.assign(res, res2);
+          } else {
+            throw new Error(err?.error?.message || `API error ${res.status}`);
+          }
         }
         const data = await res.json();
         const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
