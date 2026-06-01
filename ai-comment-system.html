@@ -1008,7 +1008,8 @@ body.overlay .comment-lane {
   height: calc(100vh - var(--safe-gap) * 2 - var(--top-ui-h));
 }
 body.overlay .comment-stream,
-.stage.comment-only .comment-stream {
+.stage.comment-only .comment-stream,
+.stage:not(.live-frame) .comment-stream {
   inset: 0;
   display: flex;
   flex-direction: column;
@@ -1017,17 +1018,18 @@ body.overlay .comment-stream,
   overflow: hidden;
 }
 body.overlay .comment,
-.stage.comment-only .comment {
+.stage.comment-only .comment,
+.stage:not(.live-frame) .comment {
   position: relative;
   right: auto;
   bottom: auto;
   width: 100%;
-  animation: newComment .22s ease-out both;
 }
 body.overlay .caption { display: block; bottom: var(--safe-gap); }
 body.overlay .time-widget { display: block; }
 body.theme-game.overlay .comment-stream,
-body.theme-game .stage.comment-only .comment-stream {
+body.theme-game .stage.comment-only .comment-stream,
+body.theme-game .stage:not(.live-frame) .comment-stream {
   inset: 52px 12px 12px;
 }
 body.theme-game .stage:fullscreen .comment-lane {
@@ -1104,10 +1106,6 @@ body.frame .stage {
 .stage:fullscreen .comment .text {
   font-size: clamp(14px, .74vw, 19px);
   line-height: 1.34;
-}
-@keyframes newComment {
-  0% { opacity: 0; transform: translateY(-8px) scale(.98); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @media (max-width: 980px) {
   .app { grid-template-columns: 1fr; }
@@ -1269,15 +1267,7 @@ body.theme-game .comment.super .role-badge {
 }
 .comment .role-badge { display: none; }
 
-/* コメント入場アニメーション */
-body.theme-game .stage.comment-only .comment,
-body.overlay.theme-game .comment {
-  animation: gameCommentIn .28s cubic-bezier(.22,.8,.46,1) both;
-}
-@keyframes gameCommentIn {
-  from { opacity: 0; transform: translateX(14px) scale(.97); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
+/* コメント入場アニメーションは STREAM EFFECTS セクションで定義 */
 
 /* ─── 次コメントまでプログレスバー ─── */
 .next-comment-ring {
@@ -2729,6 +2719,117 @@ body.theme-game {
   line-height: 1.5;
   padding-left: 2px;
 }
+
+/* ═══════════════════════════════════════════
+   STREAM EFFECTS v3 — コメント表示 + エフェクト
+   ═══════════════════════════════════════════ */
+
+/* ── コメント入場アニメーション（!important で確実に上書き） ── */
+@keyframes cIn {
+  from { opacity: 0; transform: translateX(18px) scale(.97); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
+}
+@keyframes cGlow {
+  0%   { box-shadow: 0 0 0 2px transparent, 0 8px 18px rgba(0,0,0,.22); }
+  45%  { box-shadow: 0 0 0 2px color-mix(in srgb,var(--user,var(--accent)) 50%,transparent),
+                     0 0 14px color-mix(in srgb,var(--user,var(--accent)) 22%,transparent),
+                     0 8px 18px rgba(0,0,0,.22); }
+  100% { box-shadow: 0 0 0 2px transparent, 0 8px 18px rgba(0,0,0,.22); }
+}
+
+/* !important で position/bottom 競合を確実に排除（live-frame は除外） */
+.stage:not(.live-frame) .comment-stream .comment {
+  position: relative !important;
+  bottom: auto     !important;
+  right: auto      !important;
+  width: 100%      !important;
+  animation: cIn .28s ease-out both, cGlow 1.4s ease-in-out .26s 1 !important;
+}
+
+/* ── スーパーチャット 派手演出 ── */
+@keyframes superIn {
+  0%   { opacity: 0; transform: scale(.86) translateY(-10px); }
+  42%  { opacity: 1; transform: scale(1.04) translateY(2px); }
+  72%  { transform: scale(.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes superGlow {
+  0%,100% { box-shadow: 0 0 0 rgba(255,211,99,0), 0 10px 28px rgba(0,0,0,.3); }
+  50%      { box-shadow: 0 0 28px 5px rgba(255,211,99,.42), 0 0 50px 8px rgba(255,140,70,.16), 0 10px 28px rgba(0,0,0,.3); }
+}
+.stage:not(.live-frame) .comment-stream .comment.super {
+  animation: superIn .38s cubic-bezier(.18,.88,.44,1) both,
+             superGlow 2s ease-in-out .4s 2 !important;
+  overflow: hidden;
+}
+.comment.super .super-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 28%, rgba(255,255,255,.34) 50%, transparent 72%);
+  animation: superSheen .7s ease-out .42s 1 forwards;
+  pointer-events: none;
+  border-radius: inherit;
+}
+@keyframes superSheen {
+  from { transform: translateX(-130%) skewX(-18deg); opacity: 1; }
+  to   { transform: translateX(210%)  skewX(-18deg); opacity: 0; }
+}
+
+/* ── ゲームテーマ LIVE CHAT ヘッダー ── */
+@keyframes laneShift {
+  0%,100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+body.theme-game .comment-lane::before {
+  background: linear-gradient(90deg,
+    rgba(216,184,79,.92), rgba(255,246,194,.9),
+    rgba(73,212,255,.78), rgba(255,246,194,.9),
+    rgba(216,184,79,.92)) !important;
+  background-size: 250% 100% !important;
+  animation: laneShift 4s ease-in-out infinite !important;
+}
+
+/* ── 浮遊パーティクル ── */
+.stage-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: -1;
+}
+.sp {
+  position: absolute;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0;
+  animation: spFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite;
+}
+@keyframes spFloat {
+  0%   { opacity:0; transform:translateY(0) scale(0); }
+  8%   { opacity:var(--op,.13); transform:translateY(-6px) scale(1); }
+  88%  { opacity:var(--op,.13); transform:translateY(var(--travel,-80px)) scale(1); }
+  100% { opacity:0; transform:translateY(calc(var(--travel,-80px) - 8px)) scale(0); }
+}
+
+/* ── 画面フラッシュ（スーパーチャット時） ── */
+.stage-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  background: rgba(255,220,80,.18);
+  border-radius: inherit;
+  animation: stageFlash .5s ease-out forwards;
+}
+@keyframes stageFlash {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* ── コメント名 マイクロホバー ── */
+.comment:hover .name {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--user, var(--accent)) 68%, transparent);
+}
 </style>
 </head>
 <body>
@@ -3099,7 +3200,7 @@ body.theme-game {
           <button id="clearRatedHistoryBtn" class="danger" type="button">学習データをリセット</button>
         </div>
         <div id="ratedHistoryList" class="stack"></div>
-        <div id="history" class="stack" style="display:none"></div>
+        <div id="history" class="stack"></div>
       </div><!-- /panel-body -->
     </section>
   </aside>
@@ -3119,7 +3220,7 @@ body.theme-game {
           <button id="demoBurstBtn" class="primary" type="button">コメント確認</button>
         </div>
       </div>
-      <section class="stage comment-only">
+      <section class="stage comment-only" id="mainStage">
 
         <!-- ── フローティングHUD（全画面・拡大時に表示） ── -->
         <div class="live-hud" id="liveHud">
@@ -3220,7 +3321,7 @@ body.theme-game {
     persona: "auto",
     programTitle: "ゲーム実況",
     ngWords: "",
-    commentChars: "100",
+    commentChars: "50",
     commentEngine: "template",
     geminiProxyUrl: "http://127.0.0.1:8788/gemini-comment",
     personaSheetUrl: "https://docs.google.com/spreadsheets/d/1YNQUnDv18WsMm7H84Ytg3lIgvWmetLZ3bqyMm3RCgkI/export?format=csv",
@@ -3320,6 +3421,9 @@ body.theme-game {
   let commentBuffer = "";
   let sheetLastSyncAt = 0;
   let sheetSyncing = null;
+  const _seenStamps = new Set();
+  let nextCommentScheduledAt = 0;
+  let nextCommentIntervalMs = 8000;
 
   document.body.classList.toggle("overlay", isOverlay);
   document.body.classList.toggle("frame", isFrame);
@@ -3341,6 +3445,12 @@ body.theme-game {
   }
 
   function init() {
+    // 起動時の設定を安全な値に固定
+    settings.showComment = "1";
+    if (settings.commentEngine === "gemini") settings.commentEngine = "template";
+    if (settings.persona !== "auto" && settings.persona !== "all") settings.persona = "auto";
+    // commentChars が大きすぎる場合は下げる（旧デフォルト100→50）
+    if (parseInt(settings.commentChars || "50", 10) > 80) settings.commentChars = "50";
     applyTheme();
     bindBus();
     startClock();
@@ -3357,6 +3467,7 @@ body.theme-game {
     renderRatedHistory();
     renderLayoutUI();
     schedule();
+    initParticles();
     updateObsUrl();
     bindPanelToggles();
     bindQuickCockpit();
@@ -3607,7 +3718,6 @@ body.theme-game {
     }).catch(() => {});
   }
 
-  const _seenStamps = new Set();
   function receive(event) {
     if (!event) return;
     if (event.type === "ready") { obsSeenAt = Date.now(); return; }
@@ -4322,10 +4432,9 @@ body.theme-game {
       const pool = ranked.filter(x => x.score >= Math.max(1, topScore - 2)).slice(0, 10).map(x => x.persona);
       return sample(pool);
     }
-    const themed = personas.filter(x => x.genre === settings.genre);
-    const softListeners = personas.filter(x => ["listener"].includes(x.id));
-    const pool = [...themed, ...softListeners];
-    return sample(pool.length ? pool : personas);
+    // スコア0のときは全有効人格からランダム（ジャンル絞りなし）
+    const enabled = personas.filter(x => x.enabled !== false);
+    return sample(enabled.length ? enabled : personas);
   }
 
   function personaRelevance(p, text) {
@@ -4366,15 +4475,9 @@ body.theme-game {
 
   async function comment(superChat, forced = false) {
     if (paused) return;
-    // forcedでない場合のみrecentTextチェック
     const ctx = recentText().trim();
-    if (!forced && !ctx) return;
+    if (!ctx) return;
     if (!superChat && !forced && Date.now() - lastCommentAt < 1600) return;
-    // forcedの場合テスト文を入れる
-    if (forced && !ctx) {
-      const g = genres[settings.genre] || genres.game;
-      pushTranscript("配信中です。" + (g.guide || "今の話題でコメントを流します。"));
-    }
     if (settings.commentEngine === "gemini") {
       const generated = await geminiComment(superChat);
       if (generated) return;
@@ -4386,7 +4489,7 @@ body.theme-game {
       text = buildComment(p);
       if (!history.slice(0, 10).some(x => x.text === text)) break;
     }
-    if (blocked(text)) return;
+    if (!text || blocked(text)) return;
     lastCommentAt = Date.now();
     if (!superChat) commentBuffer = "";
     post({ type: "comment", comment: { user: p.name, color: p.color, text, superChat } });
@@ -4446,11 +4549,15 @@ body.theme-game {
       ].join(" ")
     };
     try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 3000);
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: ctrl.signal
       });
+      clearTimeout(tid);
       if (!res.ok) throw new Error("Gemini proxy " + res.status);
       const data = await res.json();
       const comments = normalizeGeminiComments(data.comments);
@@ -4854,6 +4961,11 @@ body.theme-game {
     ["controlStream","overlayStream"].map($).filter(Boolean).forEach(stream => {
       const n = document.createElement("article");
       n.className = "comment" + (c.superChat ? " super" : "");
+      // CSS 競合を JS レベルでも確実に排除
+      n.style.position = "relative";
+      n.style.bottom   = "auto";
+      n.style.right    = "auto";
+      n.style.width    = "100%";
       n.style.setProperty("--user", c.color || genres[settings.genre].color);
       n.style.setProperty("--life", (c.text.length > 42 ? 20 : 16) + "s");
       n.innerHTML = '<span class="name"></span><span class="role-badge"></span><span class="meta"></span><span class="text"></span>';
@@ -4866,12 +4978,15 @@ body.theme-game {
         roleBadge.style.display = "inline-block";
       }
       n.querySelector(".text").textContent = c.text;
-      if (stream.closest(".stage.live-frame") || stream.closest(".stage.comment-only") || document.body.classList.contains("overlay")) {
-        stream.prepend(n);
-      } else {
-        stream.append(n);
+      if (c.superChat) {
+        const sheen = document.createElement("div");
+        sheen.className = "super-sheen";
+        n.appendChild(sheen);
+        sheen.addEventListener("animationend", () => sheen.remove());
       }
+      stream.prepend(n);
       trimCommentStream(stream);
+      if (c.superChat) triggerSuperChatFx();
     });
     if (!isOverlay && !isFrame) {
       commentCount++;
@@ -4891,6 +5006,42 @@ body.theme-game {
     const max = 28;
     while (stream.children.length > max) {
       stream.removeChild(stream.lastElementChild);
+    }
+  }
+
+  // ── 配信エフェクト ──────────────────────────────
+
+  function triggerSuperChatFx() {
+    const stage = $("mainStage") || document.querySelector(".stage");
+    if (!stage) return;
+    const flash = document.createElement("div");
+    flash.className = "stage-flash";
+    stage.appendChild(flash);
+    flash.addEventListener("animationend", () => flash.remove());
+  }
+
+  function initParticles() {
+    const stage = $("mainStage") || document.querySelector(".stage");
+    if (!stage) return;
+    const wrap = document.createElement("div");
+    wrap.className = "stage-particles";
+    stage.prepend(wrap);
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement("div");
+      p.className = "sp";
+      const size = 2 + Math.random() * 3;
+      const travel = -(50 + Math.random() * 120);
+      p.style.cssText = [
+        `width:${size}px`, `height:${size}px`,
+        `left:${Math.random() * 100}%`,
+        `bottom:${Math.random() * 35}%`,
+        `--dur:${7 + Math.random() * 8}s`,
+        `--delay:${Math.random() * 9}s`,
+        `--travel:${travel}px`,
+        `--op:${0.08 + Math.random() * 0.14}`
+      ].join(";");
+      wrap.appendChild(p);
     }
   }
 
@@ -4922,7 +5073,7 @@ body.theme-game {
 
   function schedule() {
     clearTimeout(autoTimer);
-    const delay = 4200 + Math.floor(Math.random() * 5600);
+    const delay = 12000 + Math.floor(Math.random() * 18000); // 12〜30秒間隔
     nextCommentIntervalMs = delay;
     nextCommentScheduledAt = Date.now() + delay;
     autoTimer = setTimeout(() => {
@@ -4930,13 +5081,13 @@ body.theme-game {
         const ctx = recentText().trim();
         const buf = countMeaningfulChars(commentBuffer);
         if (ctx && buf >= commentThreshold()) {
-          // 十分なテキストあり → 通常発火
+          // 十分な文字起こしあり → 通常発火
           comment(false);
         } else if (ctx) {
-          // テキストあるがバッファ不足 → 強制発火
+          // 文字起こしあり・バッファ不足 → 強制発火（文字起こし内容は使う）
           comment(false, true);
         }
-        // テキストなし → 何もしない
+        // 文字起こしなし → 発火しない（マイクをONにして話してください）
       }
       schedule();
     }, delay);
@@ -5136,8 +5287,6 @@ body.theme-game {
   }
 
   /* ─── ライブバー + カウントダウン ─── */
-  let nextCommentScheduledAt = 0;
-  let nextCommentIntervalMs = 8000;
 
   function updateLiveBar() {
     const bar = $("liveBar");
@@ -5951,7 +6100,29 @@ body.theme-game {
     const m = Math.floor((n % 3600) / 60);
     return h > 0 ? h + "時間" + m + "分" : m + "分";
   }
+
 })();
+</script>
+<script>
+// エラーログ（赤ドットをクリックで内容確認）
+var _errorLog = [];
+function _addError(entry) {
+  _errorLog.push(entry);
+  var dot = document.getElementById('errorDot');
+  if (dot) { dot.style.display = 'inline-block'; dot.title = _errorLog.join('\n'); }
+}
+window.onerror = function(msg, src, line) { _addError('ERR L' + line + ': ' + String(msg).slice(0, 200)); };
+window.onunhandledrejection = function(e) { _addError('REJ: ' + String(e.reason).slice(0, 200)); };
+document.addEventListener('DOMContentLoaded', function() {
+  var bar = document.getElementById('liveBar');
+  if (!bar) return;
+  var dot = document.createElement('span');
+  dot.id = 'errorDot';
+  dot.style.cssText = 'display:none;background:#ff3344;border-radius:999px;width:10px;height:10px;cursor:pointer;flex-shrink:0;box-shadow:0 0 0 4px rgba(255,51,68,.3);margin-left:4px';
+  dot.title = 'エラーなし';
+  dot.addEventListener('click', function() { alert(_errorLog.length ? _errorLog.join('\n\n') : 'エラーなし'); });
+  bar.appendChild(dot);
+});
 </script>
 </body>
 </html>
