@@ -2830,6 +2830,32 @@ body.theme-game .comment-lane::before {
 .comment:hover .name {
   text-shadow: 0 0 12px color-mix(in srgb, var(--user, var(--accent)) 68%, transparent);
 }
+
+/* ── Panel 8: 実況フロー (RB-Tree) ── */
+.btn-flow-stop{width:100%;padding:10px;background:rgba(255,107,122,.12);border:1px solid rgba(255,107,122,.35);border-radius:8px;color:var(--danger);font-weight:850;font-size:13px;cursor:pointer;transition:all .2s;margin-bottom:8px;min-height:unset;}
+.btn-flow-stop:hover{background:rgba(255,107,122,.22);}
+.btn-flow-stop.resume{background:rgba(81,210,139,.12);border-color:rgba(81,210,139,.35);color:var(--good);}
+.flow-step-card{background:rgba(87,210,139,.06);border:1px solid rgba(87,210,139,.22);border-radius:8px;padding:10px 12px;margin:0 0 8px;}
+.flow-step-num{font-size:24px;font-weight:900;color:var(--good);line-height:1;font-variant-numeric:tabular-nums;}
+.flow-step-title{font-size:13px;font-weight:850;margin:4px 0 2px;}
+.flow-step-desc{font-size:11px;color:var(--muted);line-height:1.6;}
+.flow-step-input{width:100%;margin-top:8px;padding:7px 10px;border-radius:6px;border:1px solid var(--line);background:rgba(0,0,0,.3);color:var(--text);font-size:11px;min-height:unset;}
+.flow-dots{display:flex;gap:4px;flex-wrap:wrap;margin:8px 0 0;}
+.flow-dot{width:24px;height:24px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:850;color:var(--muted);cursor:pointer;transition:all .15s;}
+.flow-dot.done{background:rgba(87,210,139,.2);border-color:rgba(87,210,139,.5);color:var(--good);}
+.flow-dot.active{background:rgba(242,193,78,.15);border-color:rgba(242,193,78,.4);color:var(--warn);}
+.btn-flow-next{width:100%;margin-top:8px;padding:7px;background:rgba(242,193,78,.1);border:1px solid rgba(242,193,78,.3);color:var(--warn);border-radius:6px;font-weight:850;font-size:11px;cursor:pointer;transition:all .15s;min-height:unset;}
+.btn-flow-next:hover:not(:disabled){background:rgba(242,193,78,.2);}
+.btn-flow-next:disabled{opacity:.3;cursor:default;}
+.clip-tag-row{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;}
+.clip-tag{padding:2px 8px;border-radius:999px;border:1px solid rgba(87,210,139,.25);background:rgba(87,210,139,.06);color:var(--good);font-size:10px;font-weight:700;cursor:pointer;transition:all .15s;user-select:none;}
+.clip-tag:hover{background:rgba(87,210,139,.2);}
+.clip-history-item{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,.02);font-size:11px;}
+.clip-stage-badge{font-size:9px;padding:2px 5px;border-radius:999px;background:rgba(87,210,139,.1);color:var(--good);border:1px solid rgba(87,210,139,.2);white-space:nowrap;flex-shrink:0;margin-top:2px;cursor:pointer;transition:all .15s;user-select:none;}
+.clip-stage-badge:hover{background:rgba(87,210,139,.28);}
+.clip-item-title{font-weight:700;font-size:11px;}
+.clip-item-meta{font-size:9px;color:var(--muted);margin-top:1px;}
+.rb-mode-btn{flex:1;font-size:11px;padding:6px;min-height:unset;}
 </style>
 </head>
 <body>
@@ -3201,6 +3227,77 @@ body.theme-game .comment-lane::before {
         </div>
         <div id="ratedHistoryList" class="stack"></div>
         <div id="history" class="stack"></div>
+      </div><!-- /panel-body -->
+    </section>
+
+    <section class="panel collapsed" id="panel8">
+      <div class="panel-head">
+        <div class="panel-title">8. 実況フロー</div>
+        <div class="panel-note" id="rbFlowStats">Clips 0件</div>
+        <button class="panel-toggle" data-panel="panel8" title="折りたたむ">▾</button>
+      </div>
+      <div class="panel-body">
+
+        <!-- Stop / Resume -->
+        <button class="btn-flow-stop" id="rbStopBtn" type="button">⏸ 場面を止める</button>
+
+        <!-- Active flow steps (shown when stopped) -->
+        <div id="rbFlowActive" style="display:none;">
+          <div class="flow-step-card">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span class="flow-step-num" id="rbStepNum">1</span>
+              <span style="font-size:11px;color:var(--muted);" id="rbStepOf">/ 6</span>
+              <span id="rbSpeakerBadge" style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(87,210,139,.1);color:var(--good);border:1px solid rgba(87,210,139,.2);"></span>
+            </div>
+            <div class="flow-step-title" id="rbStepTitle">—</div>
+            <div class="flow-step-desc"  id="rbStepDesc">—</div>
+            <div id="rbStepInputWrap"></div>
+            <div class="flow-dots" id="rbFlowDots"></div>
+            <button class="btn-flow-next" id="rbNextBtn" onclick="rbFlowNext()" type="button">次へ →</button>
+          </div>
+        </div>
+
+        <!-- Mode: play / review -->
+        <div style="display:flex;gap:4px;margin-bottom:10px;">
+          <button class="rb-mode-btn primary" id="rbModePlayBtn"   onclick="rbSetMode('play')"   type="button">▶ プレイ</button>
+          <button class="rb-mode-btn"         id="rbModeReviewBtn" onclick="rbSetMode('review')" type="button">⏮ 振り返り</button>
+        </div>
+
+        <!-- Clip form -->
+        <div>
+          <label>🎬 Clip 記録</label>
+          <div class="stack" style="margin-top:6px;gap:6px;">
+            <input id="rbClipName" placeholder="場面名 * (例: ボス初戦 / 謎解きで詰まった)">
+            <div style="display:flex;gap:6px;">
+              <select id="rbClipType" style="flex:1;min-height:36px;">
+                <option value="名場面">🏆 名場面</option>
+                <option value="発見">💡 発見</option>
+                <option value="失敗">💀 失敗</option>
+                <option value="攻略">🎯 攻略</option>
+                <option value="謎">❓ 謎</option>
+                <option value="笑い">😂 笑い</option>
+                <option value="感動">😭 感動</option>
+                <option value="裏技">🔑 裏技</option>
+              </select>
+              <input id="rbClipNote" placeholder="メモ・攻略法…" style="flex:2;">
+            </div>
+          </div>
+          <div class="clip-tag-row" id="rbTagRow"></div>
+          <div class="actions" style="margin-top:4px;">
+            <button id="rbSaveClipBtn" class="good" type="button">🎬 記録</button>
+            <button id="rbExportBtn" type="button">📄 書き出し</button>
+            <button id="rbClearBtn" class="danger" type="button">🗑</button>
+          </div>
+        </div>
+
+        <!-- Clip history -->
+        <div style="margin-top:12px;">
+          <label>📋 Clipログ (<span id="rbClipCount">0</span>件 · 名場面 <span id="rbSceneCount">0</span>件)</label>
+          <div class="stack" id="rbClipHistory" style="margin-top:6px;max-height:200px;overflow-y:auto;gap:4px;">
+            <div style="font-size:11px;color:var(--muted);padding:8px;text-align:center;" id="rbClipEmpty">まだ記録がありません</div>
+          </div>
+        </div>
+
       </div><!-- /panel-body -->
     </section>
   </aside>
@@ -6123,6 +6220,292 @@ document.addEventListener('DOMContentLoaded', function() {
   dot.addEventListener('click', function() { alert(_errorLog.length ? _errorLog.join('\n\n') : 'エラーなし'); });
   bar.appendChild(dot);
 });
+</script>
+<script>
+// ════════════════════════════════════════════════════
+//  Panel 8: 実況フロー (RB-Tree Game Stream)
+// ════════════════════════════════════════════════════
+(function() {
+  "use strict";
+
+  const RB_CLIP_KEY = 'rb_game_flow_clips_v1';
+
+  const STAGES = {
+    moment:    { label: '💫 Moment',    next: 'fragment'  },
+    fragment:  { label: '🎬 Fragment',  next: 'highlight' },
+    highlight: { label: '🌟 Highlight', next: 'story'     },
+    story:     { label: '📖 Story',     next: 'legend'    },
+    legend:    { label: '🏆 Legend',    next: null        },
+  };
+
+  const GENRE_TAGS = {
+    rpg:     ['ボス','レベルアップ','イベント','装備','全滅','回復','スキル'],
+    fps:     ['キル','死亡','戦術','エイム','チーム連携','スナイプ','爆破'],
+    adv:     ['謎解き','選択肢','エンディング','伏線','キャラ','感情移入'],
+    pzl:     ['閃き','詰まり','解法','最適解','タイム','ひらめき'],
+    ftg:     ['コンボ','ガード','必殺技','逆転','崩し','完封','読み'],
+    hor:     ['驚き','即死','逃走','ホラー演出','心音','雰囲気'],
+    sim:     ['建設','管理','最適化','失敗','発展','バグ','赤字'],
+    economy: ['用語','金利','物価','為替','GDP','インフレ'],
+    study:   ['ポイント','解説','応用','確認','まとめ'],
+    movie:   ['シーン','演出','台詞','余韻','伏線'],
+    book:    ['名言','要約','読後感','気づき','引用'],
+    game:    ['名場面','失敗','発見','謎','感動','笑い','裏技','初見殺し'],
+  };
+
+  const FLOWS = {
+    play: [
+      { speaker:'A', title:'場面を止める',     desc:'ゲームを一時停止。「ここで止めます。——という場面が来ました」と実況する。', field:null },
+      { speaker:'A', title:'状況を実況する',   desc:'今画面に何が映っているかを言語化。視聴者が把握できるよう話す。',         field:'name', placeholder:'場面を一言で… (例: ボス登場！)' },
+      { speaker:'A', title:'なぜ止めたか話す', desc:'気づき・驚き・戦略・疑問点を語る。プレイヤー視点の本音を言語化。',       field:'note', placeholder:'気づき・戦略・感想…' },
+      { speaker:'両者', title:'視聴者に問いかける', desc:'「皆さんならどうする？」「このボス知ってた？」とコメントを呼び込む。', field:null },
+      { speaker:'A', title:'Clipに記録する',   desc:'↓ 場面名・タイプを入力して「🎬 記録」ボタンを押す。',                   field:null },
+      { speaker:'A', title:'ゲームを再開する', desc:'「では続きをプレイします」と声に出してから操作を再開。',                  field:null },
+    ],
+    review: [
+      { speaker:'A', title:'場面を止める',     desc:'録画・VoDを一時停止。「ここを振り返ります。——の場面です」と宣言。',      field:null },
+      { speaker:'A', title:'当時を思い出す',   desc:'「このとき何を考えていたか」「なぜこのプレイか」を話す。',               field:'name', placeholder:'振り返る場面名…' },
+      { speaker:'A', title:'振り返りコメント', desc:'「あのとき○○すべきだった」「神プレイだった」今見えることを語る。',       field:'note', placeholder:'振り返りの気づき…' },
+      { speaker:'A', title:'改善点・攻略法',   desc:'次回同じ場面でどうするか。視聴者に攻略情報を共有する。',                  field:null },
+      { speaker:'A', title:'Clipに記録する',   desc:'↓ 場面名・タイプを入力して「🎬 記録」ボタンを押す。',                   field:null },
+      { speaker:'A', title:'次の場面へ',       desc:'「では次を見ます」と言って再生。シーンを継続。',                          field:null },
+    ],
+  };
+
+  // ── State ──
+  let clips = [], flowMode = 'play', flowStep = 0;
+  let doneSteps = new Set(), stepInputs = {}, isStopped = false;
+
+  const $ = id => document.getElementById(id);
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function getCurrentGenre() {
+    return $('genre')?.value || 'game';
+  }
+
+  // ── Tags ──
+  function renderTags() {
+    const row = $('rbTagRow');
+    if (!row) return;
+    const g = getCurrentGenre();
+    const tags = GENRE_TAGS[g] || GENRE_TAGS.game;
+    row.innerHTML = tags.map(t => `<span class="clip-tag" onclick="rbInsertTag('${escHtml(t)}')">${escHtml(t)}</span>`).join('');
+  }
+
+  window.rbInsertTag = function(tag) {
+    const el = $('rbClipName');
+    if (!el) return;
+    el.value = el.value ? tag + ' / ' + el.value : tag;
+    el.focus();
+  };
+
+  // ── Mode ──
+  window.rbSetMode = function(m) {
+    flowMode = m;
+    const pb = $('rbModePlayBtn'), rb = $('rbModeReviewBtn');
+    if (pb) { pb.className = 'rb-mode-btn' + (m === 'play'   ? ' primary' : ''); }
+    if (rb) { rb.className = 'rb-mode-btn' + (m === 'review' ? ' primary' : ''); }
+    flowStep = 0; doneSteps = new Set(); stepInputs = {};
+    if (isStopped) renderFlowStep();
+  };
+
+  // ── Stop / Resume ──
+  function toggleStop() {
+    isStopped = !isStopped;
+    const btn = $('rbStopBtn');
+    const active = $('rbFlowActive');
+    if (btn) { btn.textContent = isStopped ? '▶ ゲームを再開' : '⏸ 場面を止める'; btn.classList.toggle('resume', !isStopped); }
+    if (active) active.style.display = isStopped ? 'block' : 'none';
+    if (isStopped) {
+      flowStep = 0; doneSteps = new Set(); stepInputs = {};
+      renderFlowStep();
+    }
+  }
+
+  // ── Flow ──
+  function renderFlowStep() {
+    const steps = FLOWS[flowMode];
+    const s = steps[flowStep];
+    if (!s) return;
+    if ($('rbStepNum')) $('rbStepNum').textContent = flowStep + 1;
+    if ($('rbStepOf'))  $('rbStepOf').textContent  = `/ ${steps.length}`;
+    if ($('rbStepTitle')) $('rbStepTitle').textContent = s.title;
+    if ($('rbStepDesc'))  $('rbStepDesc').textContent  = s.desc;
+    if ($('rbSpeakerBadge')) $('rbSpeakerBadge').textContent = s.speaker + ' が話す';
+
+    const wrap = $('rbStepInputWrap');
+    if (wrap) {
+      const val = stepInputs[flowStep] || '';
+      if (s.field) {
+        wrap.innerHTML = `<input class="flow-step-input" id="rbFlowIn" placeholder="${escHtml(s.placeholder || '')}" value="${escHtml(val)}" oninput="rbOnStepInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();rbFlowNext();}">`;
+      } else {
+        wrap.innerHTML = '';
+      }
+    }
+
+    const dots = $('rbFlowDots');
+    if (dots) {
+      dots.innerHTML = steps.map((st, i) => {
+        const cls = doneSteps.has(i) ? 'done' : i === flowStep ? 'active' : '';
+        return `<div class="flow-dot ${cls}" onclick="rbGoToStep(${i})" title="${escHtml(st.title)}">${doneSteps.has(i) ? '✓' : i + 1}</div>`;
+      }).join('');
+    }
+
+    const btn = $('rbNextBtn');
+    if (btn) {
+      const isLast = flowStep >= steps.length - 1;
+      btn.disabled = isLast;
+      btn.textContent = isLast ? '完了 ✓' : (flowStep === 4 ? 'Clip記録 → 次へ 🎬' : '次へ →');
+    }
+  }
+
+  window.rbGoToStep = function(idx) {
+    for (let i = 0; i < FLOWS[flowMode].length; i++) {
+      if (i < idx) doneSteps.add(i); else doneSteps.delete(i);
+    }
+    flowStep = idx;
+    renderFlowStep();
+  };
+
+  window.rbFlowNext = function() {
+    const steps = FLOWS[flowMode];
+    const max = steps.length - 1;
+    if (flowStep >= max) return;
+    doneSteps.add(flowStep);
+    flowStep++;
+    renderFlowStep();
+    if (flowStep === max) setTimeout(() => { if (isStopped) toggleStop(); }, 800);
+  };
+
+  window.rbOnStepInput = function(val) {
+    stepInputs[flowStep] = val;
+    const s = FLOWS[flowMode][flowStep];
+    if (s.field === 'name') { const e = $('rbClipName'); if (e && !e.value) e.value = val; }
+    if (s.field === 'note') { const e = $('rbClipNote'); if (e) e.value = val; }
+  };
+
+  // ── Clips ──
+  function loadClips() {
+    try { clips = JSON.parse(localStorage.getItem(RB_CLIP_KEY) || '[]'); } catch { clips = []; }
+  }
+
+  function saveClip() {
+    const name = $('rbClipName')?.value?.trim();
+    if (!name) { alert('場面名を入力してください'); return; }
+    const type = $('rbClipType')?.value || '名場面';
+    const note = $('rbClipNote')?.value?.trim() || '';
+    const clip = {
+      id: Date.now().toString(), name, type, note,
+      genre: getCurrentGenre(), mode: flowMode, stage: 'moment',
+      time: new Date().toLocaleTimeString('ja-JP', { hour:'2-digit', minute:'2-digit' }),
+    };
+    clips.unshift(clip);
+    localStorage.setItem(RB_CLIP_KEY, JSON.stringify(clips));
+    if ($('rbClipName')) $('rbClipName').value = '';
+    if ($('rbClipNote')) $('rbClipNote').value = '';
+    renderClips(); updateStats();
+    flowStep = 0; doneSteps = new Set(); stepInputs = {};
+    if (isStopped) toggleStop();
+    const m = {1:'最初のClipを記録 🎬', 5:'5件到達！🌟', 10:'10件！📖 ハイライトリール完成に近づいた'}[clips.length];
+    if (m) { const t = $('rbFlowStats'); if (t) { const prev = t.textContent; t.textContent = m; setTimeout(() => { t.textContent = prev; updateStats(); }, 2000); } }
+  }
+
+  window.rbStageUp = function(id) {
+    const c = clips.find(c => c.id === id);
+    if (!c) return;
+    const next = STAGES[c.stage]?.next;
+    if (!next) { alert('🏆 Legend！これ以上の成長はありません'); return; }
+    c.stage = next;
+    localStorage.setItem(RB_CLIP_KEY, JSON.stringify(clips));
+    renderClips();
+  };
+
+  window.rbDeleteClip = function(id) {
+    clips = clips.filter(c => c.id !== id);
+    localStorage.setItem(RB_CLIP_KEY, JSON.stringify(clips));
+    renderClips(); updateStats();
+  };
+
+  function renderClips() {
+    const el = $('rbClipHistory');
+    const cnt   = $('rbClipCount');
+    const scene = $('rbSceneCount');
+    const empty = $('rbClipEmpty');
+    if (cnt)   cnt.textContent   = clips.length;
+    if (scene) scene.textContent = clips.filter(c => c.type === '名場面').length;
+    if (!el) return;
+    el.querySelectorAll('.clip-history-item').forEach(e => e.remove());
+    if (empty) empty.style.display = clips.length === 0 ? 'block' : 'none';
+    clips.slice(0, 30).forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'clip-history-item';
+      const st = STAGES[c.stage] || STAGES.moment;
+      div.innerHTML = `
+        <span class="clip-stage-badge" onclick="rbStageUp('${c.id}')" title="クリックで成長">${st.label}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="clip-item-title">${escHtml(c.name)}</div>
+          ${c.note ? `<div class="clip-item-meta">${escHtml(c.note)}</div>` : ''}
+          <div class="clip-item-meta">${c.type} · ${c.time} · ${c.mode === 'play' ? '▶' : '⏮'}</div>
+        </div>
+        <button onclick="rbDeleteClip('${c.id}')" style="background:0;border:0;color:var(--muted);cursor:pointer;font-size:10px;padding:2px 4px;opacity:.4;flex-shrink:0;min-height:unset;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">✕</button>`;
+      el.appendChild(div);
+    });
+  }
+
+  function updateStats() {
+    const el = $('rbFlowStats');
+    if (el) el.textContent = `Clips ${clips.length}件 · 名場面 ${clips.filter(c => c.type === '名場面').length}件`;
+  }
+
+  function exportSession() {
+    const dateStr = new Date().toLocaleDateString('ja-JP');
+    let md = `# RB-Tree Game Stream Clips\n\n**日付**: ${dateStr}  \n**Clips**: ${clips.length}件\n\n---\n\n`;
+    clips.forEach((c, i) => {
+      const st = STAGES[c.stage]?.label || '💫 Moment';
+      md += `### ${i+1}. ${c.name} (${c.type})\n`;
+      md += `- **ステージ**: ${st} · **時刻**: ${c.time} · ${c.mode === 'play' ? '▶ プレイ' : '⏮ 振り返り'}\n`;
+      if (c.note) md += `- **メモ**: ${c.note}\n`;
+      md += '\n';
+    });
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `rb-game-clips-${dateStr.replace(/\//g, '-')}.md`;
+    a.click();
+  }
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', function() {
+    loadClips(); renderClips(); renderTags(); updateStats();
+
+    const stopBtn   = $('rbStopBtn');
+    const saveBtn   = $('rbSaveClipBtn');
+    const exportBtn = $('rbExportBtn');
+    const clearBtn  = $('rbClearBtn');
+
+    if (stopBtn)   stopBtn.addEventListener('click', toggleStop);
+    if (saveBtn)   saveBtn.addEventListener('click', saveClip);
+    if (exportBtn) exportBtn.addEventListener('click', exportSession);
+    if (clearBtn)  clearBtn.addEventListener('click', function() {
+      if (!confirm(`Clipを ${clips.length} 件削除します。よろしいですか？`)) return;
+      clips = []; localStorage.removeItem(RB_CLIP_KEY);
+      renderClips(); updateStats();
+    });
+
+    // ジャンル変更時にタグを更新
+    const genreSel = $('genre');
+    if (genreSel) genreSel.addEventListener('change', renderTags);
+
+    // panel toggle との統合
+    const p8toggle = document.querySelector('[data-panel="panel8"]');
+    if (p8toggle) p8toggle.addEventListener('click', function() {
+      const panel = $('panel8');
+      if (panel) panel.classList.toggle('collapsed');
+    });
+  });
+
+})();
 </script>
 </body>
 </html>
