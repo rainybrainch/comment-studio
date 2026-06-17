@@ -385,6 +385,38 @@ button.danger:hover{background:rgba(255,107,122,.22)}
       <input id="editCatchphrase" maxlength="40" placeholder="例：話の温度が上がったね。">
     </div>
 
+    <div class="field-section">AMENET上の存在</div>
+    <div class="field-row">
+      <div class="field">
+        <label>種別</label>
+        <select id="editType">
+          <option value="ai">AMENET人格（完全AI）</option>
+          <option value="ghost">ゴーストテンプレート</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>活動時間帯</label>
+        <select id="editActiveHours">
+          <option value="any">いつでも</option>
+          <option value="morning">朝（6〜12時）</option>
+          <option value="day">昼（12〜18時）</option>
+          <option value="night">夜（18〜24時）</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>世界での役割（worldRole）</label>
+      <input id="editWorldRole" placeholder="例：世界観の案内人、知識の語り手、場の空気を守る者">
+    </div>
+    <div class="field">
+      <label>性格・キャラクター（personality）</label>
+      <textarea id="editPersonality" placeholder="例：物静かで観察眼が鋭い。話し手の言葉を拾って静かに返す。感情より構造を見る。"></textarea>
+    </div>
+    <div class="field">
+      <label>興味・関心領域（カンマ区切り）</label>
+      <input id="editInterests" placeholder="例：本要約,文化人類学,対話設計">
+    </div>
+
     <div class="field-section">性格・役割</div>
     <div class="field">
       <label>roleType</label>
@@ -495,6 +527,9 @@ function mk(id,name,color,length,theme,tone,examples,speciality,catchphrase){
     speciality:speciality||"",catchphrase:catchphrase||"",
     tags:[],badges:[],source:"",roleType:"知識勢",
     enabled:true,amenetActive:true,postFrequency:"medium",
+    // AMENET人格構造 v2
+    type:"ai",worldRole:"",personality:"",
+    interests:[],activeHours:"any",relatedPersonas:[],
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()
   };
 }
@@ -515,10 +550,19 @@ function load(){
       catchphrase:"",
       badges:[],
       icon:"",
+      // v2 新フィールド
+      type:"ai",
+      worldRole:"",
+      personality:"",
+      interests:[],
+      activeHours:"any",
+      relatedPersonas:[],
       ...p,
       tags: Array.isArray(p.tags) ? p.tags : parseTags(p.tags),
       badges: Array.isArray(p.badges) ? p.badges : [],
+      interests: Array.isArray(p.interests) ? p.interests : [],
       examples: Array.isArray(p.examples) ? p.examples : [],
+      relatedPersonas: Array.isArray(p.relatedPersonas) ? p.relatedPersonas : [],
     }));
   }catch{return[]}
 }
@@ -593,7 +637,7 @@ function renderCards(){
         <div class="card-avatar" style="background:${esc(p.color||"#555")}">${avatar}</div>
         <div class="card-info">
           <div class="card-name">${esc(p.name)}</div>
-          <div class="card-role">${esc(p.roleType||"")} · ${themeLabel(p.theme)}</div>
+          <div class="card-role">${esc(p.roleType||"")} · ${p.worldRole?esc(p.worldRole):themeLabel(p.theme)}</div>
         </div>
       </div>
       ${p.catchphrase?`<div class="card-catchphrase">「${esc(p.catchphrase)}」</div>`:""}
@@ -606,7 +650,7 @@ function renderCards(){
         <span class="card-toggle">
           <span class="amenet-dot${amOn?" on":""}"></span>AMENET
         </span>
-        <span class="card-freq">投稿${freq}</span>
+        <span class="card-freq">投稿${freq} · ${{any:"🌐",morning:"🌅",day:"☀",night:"🌙"}[p.activeHours||"any"]}</span>
       </div>
     </div>`;
   }).join("");
@@ -675,7 +719,9 @@ function openCreate(){
     name:"",color:"#a78bfa",theme:"talk",tone:"",catchphrase:"",
     roleType:"共感勢",speciality:"",tags:[],badges:[],
     examples:[],source:"",enabled:true,amenetActive:true,
-    postFrequency:"medium",length:"short",icon:""
+    postFrequency:"medium",length:"short",icon:"",
+    type:"ai",worldRole:"",personality:"",
+    interests:[],activeHours:"any",relatedPersonas:[]
   });
   openModal();
 }
@@ -698,6 +744,11 @@ function resetForm(p){
   document.getElementById("editColor").value        = p.color||"#a78bfa";
   document.getElementById("editTheme").value        = p.theme||"talk";
   document.getElementById("editCatchphrase").value  = p.catchphrase||"";
+  document.getElementById("editType").value         = p.type||"ai";
+  document.getElementById("editWorldRole").value    = p.worldRole||"";
+  document.getElementById("editPersonality").value  = p.personality||"";
+  document.getElementById("editInterests").value    = (p.interests||[]).join(", ");
+  document.getElementById("editActiveHours").value  = p.activeHours||"any";
   document.getElementById("editRoleType").value     = p.roleType||"共感勢";
   document.getElementById("editTone").value         = p.tone||"";
   document.getElementById("editSpeciality").value   = p.speciality||"";
@@ -743,6 +794,11 @@ function saveEdit(){
     color:          document.getElementById("editColor").value,
     theme:          document.getElementById("editTheme").value,
     catchphrase:    document.getElementById("editCatchphrase").value.trim(),
+    type:           document.getElementById("editType").value,
+    worldRole:      document.getElementById("editWorldRole").value.trim(),
+    personality:    document.getElementById("editPersonality").value.trim(),
+    interests:      parseTags(document.getElementById("editInterests").value),
+    activeHours:    document.getElementById("editActiveHours").value,
     roleType:       document.getElementById("editRoleType").value,
     tone:           document.getElementById("editTone").value.trim(),
     speciality:     document.getElementById("editSpeciality").value.trim(),
